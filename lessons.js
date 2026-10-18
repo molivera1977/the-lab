@@ -313,7 +313,7 @@ function mixedQ(id, [kind, a, b], { pre, skill, r }) {
   const expr = plus ? add(a, b) : sub(a, b);
   const check = plus ? `${expr} = ${ans}.` : `Check with adding: ${add(ans, b)} = ${a}. So ${expr} = ${ans}.`;
   // The wrong choices are the slips our fact sites actually logged (10/17 facts report): answers 1 or 2 off
-  // (Roniel 6 + 8 → 13, 14 − 3 → 12; Kelvin 2 + 6 → 7, 9 − 1 → 7) and a stray ten (Roniel 5 + 2 → 17, 5 + 4 → 19).
+  // (6 + 8 → 13, 14 − 3 → 12, 2 + 6 → 7, 9 − 1 → 7) and a stray ten (5 + 2 → 17, 5 + 4 → 19).
   const tag = plus ? 'Sum off by a little' : 'Difference off by a little';
   return question({
     id, skill, fact: { op: plus ? '+' : MINUS, a, b }, q: `What is ${expr}?`,
@@ -584,7 +584,7 @@ function fits(lessonId, f) {
   if (op === '−') {
     if (b > a || a > 20) return false;
     if (lessonId === 'AS3') return a >= 11 && a <= 19 && (b === 10 || (b >= 1 && b < a % 10));
-    if (lessonId === 'AS4') return b >= 1 && b <= 3 && a >= b;   // Kelvin 2 − 1, Roniel 3 − 2 count back too
+    if (lessonId === 'AS4') return b >= 1 && b <= 3 && a >= b;   // small facts like 2 − 1 and 3 − 2 count back too
     if (lessonId === 'AS5') return b >= 4 && a - b >= 1;
     if (lessonId === 'AS6') return true;
     return false;

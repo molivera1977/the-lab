@@ -69,13 +69,10 @@ const LESSONS = {
   AS5: { title: 'Subtract by Thinking Addition',    icon: '🔁', facts: true },
   AS6: { title: 'Facts Check to 20',                icon: '🏁', facts: true, check: true, hints: false, pre: false }
 };
-// Who the Lab is for (Marcos 10/17). Everyone else who signs in sees the same lessons as practice.
-const PLANS = {
-  'Castaneda, Kelvin':       ['as', 'mu', 'pv', 'ro'],
-  'Collado, Roniel':         ['as', 'mu', 'pv', 'ro'],
-  'Zelaya-Osorto, Nazareth': ['as', 'mu', 'pv', 'ro'],
-  'Rojas, Alanie':           ['as', 'mu', 'pv', 'ro']
-};
+// WHO IS ON A PLAN is not written in this file (the site's code is public). A student is on a plan when the
+// sheet's lab-seed tab has a row for them, form "plan=as,mu,pv,ro" (loadHistory fills PLANS at sign-in).
+// Everyone else who signs in sees the same lessons as practice.
+const PLANS = {};
 const FORMS = STRANDS.flatMap(st => st.lessons);
 const strandOf = id => STRANDS.find(st => st.lessons.includes(id));
 const passPct = id => (LESSONS[id] && LESSONS[id].facts ? FACTS_PASS_PCT : PASS_PCT);
@@ -258,13 +255,25 @@ function sendProgress(name) {
     })
   }).catch(() => {});
 }
-/* Read one tab back (one entry per student) */
+/* Read one tab back (one entry per student). null = the sheet could not be reached. */
 async function readTab(game) {
   try {
     const res = await fetch(`${SHEET_URL}?action=leaderboard&game=${encodeURIComponent(game)}`, { cache: 'no-store' });
     const rows = await res.json();
-    return Array.isArray(rows) ? rows : [];
-  } catch (e) { return []; }
+    return Array.isArray(rows) ? rows : null;
+  } catch (e) { return null; }
+}
+/* WHO IS ON A PLAN (Marcos 10/18: a student not on the list sees "Under Construction"). The list is the sheet's
+   lab-seed tab; the device keeps the last answer (PLAN_KEY) so a short loss of the network does not lock a Lab
+   student out. Mr. O and a share-link visitor see everything. */
+const PLAN_KEY = 'lab_plan_v1';   // + ':' + name
+const seesAll = name => SHARE_MODE || name === 'Mr. O (Teacher)';
+function cachedPlan(name) {
+  try { const v = JSON.parse(localStorage.getItem(PLAN_KEY + ':' + name) || 'null'); return Array.isArray(v) ? v : null; } catch (e) { return null; }
+}
+function planFor(name) {
+  if (seesAll(name)) return STRANDS.map(st => st.id);
+  return PLANS[name] || cachedPlan(name) || null;
 }
 /* At sign-in: their fact-site misses (lab-seed) and their Lab backup (lab-progress) join what this device has.
    Runs in the background — a lesson started before it lands simply has fewer of their own facts. */
@@ -272,8 +281,13 @@ async function loadHistory(name) {
   if (SHARE_MODE || !name || name === 'Mr. O (Teacher)') return false;   // a guest reads too (finds nothing); a guest never writes
   const [seed, prog] = await Promise.all([readTab('lab-seed'), readTab('lab-progress')]);
   if (app.studentName !== name) return false;
+  if (seed === null) return cachedPlan(name) ? 'cached' : 'offline';   // could not reach the sheet
   const mine = rows => rows.find(r => r.name === name);
-  const s = mine(seed), p = mine(prog);
+  const s = mine(seed), p = mine(prog || []);
+  const plan = s && /plan=([a-z,]+)/.exec(s.form || '');
+  if (plan) PLANS[name] = plan[1].split(',').filter(id => STRANDS.some(st => st.id === id));
+  else delete PLANS[name];
+  try { if (PLANS[name]) localStorage.setItem(PLAN_KEY + ':' + name, JSON.stringify(PLANS[name])); else localStorage.removeItem(PLAN_KEY + ':' + name); } catch (e) {}
   const mastered = readMastered(name);
   if (p && p.form) {
     const m = /mastered=([^|]*)/.exec(p.form);
@@ -723,11 +737,28 @@ function setFormButton(form, label, sub, waiting, el) {
 }
 
 /* MY PLAN — one card per strand, one button per lesson, the next lesson to do marked "Do this next". */
-function applyFormLocks(name) {
+function applyFormLocks(name, state) {
   const box = document.getElementById('plan-box');
   if (!box) return;
-  const strands = (PLANS[name] || STRANDS.map(st => st.id)).map(id => STRANDS.find(st => st.id === id)).filter(Boolean);
-  const listed = !!PLANS[name];
+  const rules = document.getElementById('lab-rules');
+  const plan = planFor(name);
+  if (!plan) {
+    // not on the list (or the list has not arrived yet): no lessons
+    if (rules) rules.classList.add('hidden');
+    const msg = state === 'checking'
+      ? { icon: '⏳', head: 'Getting your plan…', text: 'One moment. The Lab is getting your plan.' }
+      : state === 'offline'
+        ? { icon: '📡', head: 'We could not get your plan', text: 'The Lab could not reach the internet. Tap Try Again. If it still does not work, ask Mr. O.' }
+        : { icon: '🚧', head: 'Under Construction', text: 'The Lab is not ready for you yet. Mr. O will tell you when it is ready.' };
+    box.innerHTML = `<div class="dir-section uc-box" id="lab-uc" data-state="${state || 'none'}"><div class="dir-row"><button class="speak-btn" onclick="speakDir(this)">🔊</button>` +
+      `<h3 style="margin:0;">${msg.icon} ${msg.head}</h3></div><p class="dir-text">${msg.text}</p>` +
+      (state === 'offline' ? `<button class="start-btn" id="lab-retry" onclick="app.checkPlan()">🔄 Try Again<span class="form-btn-sub">Get my plan again.</span></button>` : '') +
+      (state === 'checking' ? '' : `<button class="signout-btn" onclick="app.restart()">🚪 Sign Out<span class="signout-sub">You will go back to the start.</span></button>`) + `</div>`;
+    return;
+  }
+  if (rules) rules.classList.remove('hidden');
+  const strands = plan.map(id => STRANDS.find(st => st.id === id)).filter(Boolean);
+  const listed = !!PLANS[name] || !!cachedPlan(name);
   const first = getFirstName(name);
   const nextUp = FORMS.find(id => !passed(name, id) && !lessonWait(name, id));
   box.innerHTML = '';
@@ -1035,6 +1066,22 @@ const app = {
     if (SHARE_MODE) this._shareSignIn();
   },
 
+  /* After sign-in: who is on the list comes from the sheet (with the device's last answer as the fallback).
+     Their earlier misses and their Lab backup (lessons passed on another device) come with it. */
+  checkPlan() {
+    const name = this.studentName;
+    if (!name) return;
+    if (seesAll(name)) { applyFormLocks(name); this.checkResume(); return; }
+    applyFormLocks(name, planFor(name) ? '' : 'checking');
+    if (planFor(name)) this.checkResume();
+    loadHistory(name).then(got => {
+      if (this.studentName !== name) return;
+      applyFormLocks(name, got === 'offline' ? 'offline' : '');
+      if (planFor(name)) this.checkResume();
+      else document.getElementById('resume-container').classList.add('hidden');
+    });
+  },
+
   /* Shared preview: no roster, no student number — straight to the parts. */
   _shareSignIn() {
     loggedInName     = 'Guest';
@@ -1104,16 +1151,14 @@ const app = {
       if (loginCard) loginCard.classList.add('hidden');
       document.getElementById('form-select-section').classList.remove('hidden');
       retakeUnlocked = false;   // a PIN unlock never carries over to the next student
-      applyFormLocks(displayName);
-      this.checkResume();
-      // their earlier misses and their Lab backup (lessons passed on another device) — in the background
-      loadHistory(displayName).then(got => { if (got && this.studentName === displayName) applyFormLocks(displayName); });
+      this.checkPlan();
     }
   },
 
   /* ── ATTEMPT START ── */
   attemptStart(form) {
     if (!this.studentName || !LESSONS[form] || !formOpen(form)) return;
+    if (!reviewMode && !planFor(this.studentName)) { applyFormLocks(this.studentName); return; }   // not on the list
     // The gate: the lesson before it in the strand must be passed. The Teacher PIN lets this one student past.
     const why = lessonWait(this.studentName, form);
     if (why) {
