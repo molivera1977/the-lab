@@ -42,7 +42,8 @@ const sub = (a, b) => `${a} ${MINUS} ${b}`;
    choices are put in order (a child could learn "the second smallest is right"). tools/check-lab.js checks it. */
 function question(base, answer, wrongs, r) {
   // candidates: the builder's slips, then plain "a little off" ones (used only to balance the order)
-  const near = [3, -3, 4, -4].map(d => ({ v: answer + d, tag: 'Off by a little', say: `Count again. ${base.explanation}` }));
+  // noNear: place value and rounding use only named slips (a wrong place, not "3 off")
+  const near = base.noNear ? [] : [3, -3, 4, -4].map(d => ({ v: answer + d, tag: 'Off by a little', say: `Count again. ${base.explanation}` }));
   const seen = new Set([String(answer)]);
   const cands = [];
   [...wrongs, ...near].forEach(w => { if (w.v >= 0 && !seen.has(String(w.v))) { seen.add(String(w.v)); cands.push(w); } });
@@ -63,7 +64,12 @@ function question(base, answer, wrongs, r) {
   const picked = shuffled(best.set, r);
   const slips = {};
   picked.forEach(w => { slips[String(w.v)] = { tag: w.tag, say: w.say }; });
-  return { ...base, choices: [String(answer), ...picked.map(w => String(w.v))], answer: String(answer), slips };
+  // commas: numbers of 1,000 and more are shown the way the question shows them ("6,250", not "6250")
+  const { noNear, commas, ...rest } = base;
+  const show = v => (commas ? Number(v).toLocaleString('en-US') : String(v));
+  const shownSlips = {};
+  Object.entries(slips).forEach(([k, v]) => { shownSlips[show(k)] = v; });
+  return { ...rest, choices: [show(answer), ...picked.map(w => show(w.v))], answer: show(answer), slips: shownSlips };
 }
 
 /* ═══ FACT POOLS + QUESTION BUILDERS, one per kind of question ═══ */
@@ -837,6 +843,487 @@ const MU_LESSONS = ({ watch, step, B }) => [
   }
 ];
 LESSONS.push(...MU_LESSONS({ watch, step, B: { groupsPool, groupsQ, arrayPool, arrayQ, skipPool, skipQ, timesPool, timesQ, factsPool, multQ } }));
+
+/* ═══ STRAND 3 · PLACE VALUE WITH 10s AND 100s (not facts: 70%) ═══ */
+const fmt = n => Number(n).toLocaleString('en-US');
+const PLACES = ['ones', 'tens', 'hundreds', 'thousands'];
+const digitsOf = n => String(n).split('').reverse().map(Number);   // [ones, tens, hundreds, …]
+
+/* PV1 / PV3 VALUE OF A DIGIT: n has distinct non-zero digits; ask about place p */
+function valuePool(len) {
+  const out = [];
+  const lo = 10 ** (len - 1), hi = 10 ** len - 1;
+  for (let n = lo; n <= hi; n += len === 3 ? 7 : 61) {
+    const d = digitsOf(n);
+    if (d.includes(0) || new Set(d).size !== d.length) continue;
+    for (let p = 1; p < len; p++) out.push([n, p]);     // tens and up (the ones place is too easy)
+  }
+  return out;
+}
+function valueQ(id, [n, p], { pre, skill, r }) {
+  const d = digitsOf(n), digit = d[p], ans = digit * 10 ** p, place = PLACES[p];
+  const how = `The ${digit} is in the ${place} place. ${digit} ${place} is ${fmt(ans)}. In ${fmt(n)}, the ${digit} is worth ${fmt(ans)}.`;
+  return question({
+    id, skill, q: `In ${fmt(n)}, what is the value of the ${digit}?`, place: { n, p }, noNear: true, commas: true,
+    ...(pre ? { kind: 'pre' } : { hint: `Find the place of the ${digit}. Ones, tens, hundreds${d.length > 3 ? ', thousands' : ''}: count from the right.`, pic: { places: { n } }, explain: { places: { n, mark: p } } }),
+    explanation: how
+  }, ans, [
+    { v: digit, keep: true, tag: 'Gave the digit, not its value', say: `${digit} is the digit. Its value depends on its place. ${how}` },
+    { v: digit * 10 ** (p + 1), tag: 'One place too far left', say: `That is the next place to the left. Count the places from the right: ones, tens, hundreds. ${how}` },
+    ...(p > 1 ? [{ v: digit * 10 ** (p - 1), tag: 'One place too far right', say: `That is the next place to the right. Count the places from the right: ones, tens, hundreds. ${how}` }] : []),
+    { v: n, tag: 'Gave the whole number', say: `${fmt(n)} is the whole number. The question asks about the ${digit} only. ${how}` },
+    { v: digit * 10 ** (p + 2), tag: 'Two places too far left', say: `That is two places to the left. Count the places from the right: ones, tens, hundreds. ${how}` }
+  ], r);
+}
+
+/* PV2 EXPANDED FORM (3-digit, some with a 0) — "300 + 40 + 7 = ?" and "506 = ?" */
+function expandedPool() {
+  const out = [];
+  for (let h = 1; h <= 9; h++) for (let t = 0; t <= 9; t += 3) for (let o = 1; o <= 9; o += 2) out.push([h * 100 + t * 10 + o]);
+  return out;
+}
+function expandedQ(id, [n], { pre, skill, r }) {
+  const [o, t, h] = digitsOf(n);
+  const parts = [h * 100, t * 10, o].filter(x => x > 0);
+  const exp = parts.join(' + ');
+  const how = `${fmt(n)} is ${h} hundreds, ${t} tens and ${o} ones: ${exp} = ${fmt(n)}.`;
+  return question({
+    id, skill, q: `What number is ${exp}?`, place: { n }, noNear: true, commas: true,
+    ...(pre ? { kind: 'pre' } : { hint: 'Put each part in its place: hundreds, tens, ones.', pic: { places: { parts } }, explain: { places: { n } } }),
+    explanation: how
+  }, n, [
+    { v: t === 0 ? h * 10 + o : h * 100 + o * 10 + t, keep: true, tag: t === 0 ? 'Left out the zero in the tens place' : 'Swapped the tens and ones', say: t === 0 ? `There are no tens. A 0 holds the tens place: ${fmt(n)}. ${how}` : `The tens and ones got swapped. ${how}` },
+    { v: h + t + o, tag: 'Added the digits', say: `You added the digits. Each digit has a place. ${how}` },
+    { v: n + 100, tag: 'Hundreds off by one', say: `Count the hundreds again: ${h}. ${how}` },
+    { v: n + 10, tag: 'Tens off by one', say: `Count the tens again: ${t}. ${how}` },
+    { v: n - 100, tag: 'Hundreds off by one', say: `Count the hundreds again: ${h}. ${how}` }
+  ], r);
+}
+
+/* PV4 / PV5 TIMES 10 / TIMES 100 */
+function times10Pool(k) { const out = []; for (let n = 2; n <= (k === 10 ? 99 : 49); n += (k === 10 ? 3 : 2)) if (n % 10) out.push([n, k]); return out; }
+function times10Q(id, [n, k], { pre, skill, r }) {
+  const ans = n * k, zeros = k === 10 ? 'one 0' : 'two 0s';
+  const how = `${k} ${TIMES} ${n}: every digit moves ${k === 10 ? 'one place' : 'two places'} to the left, and ${zeros} hold the empty place${k === 10 ? '' : 's'}. ${k} ${TIMES} ${n} = ${fmt(ans)}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a: k, b: n }, q: `What is ${k} ${TIMES} ${n}?`, noNear: true, commas: true,
+    ...(pre ? { kind: 'pre' } : { hint: `Times ${k}: write ${n}, then ${zeros}.`, pic: { shift: { n, k } }, explain: { shift: { n, k, show: ans } } }),
+    explanation: how
+  }, ans, [
+    { v: n + k, keep: true, tag: 'Added instead of multiplying', say: `You added ${n} + ${k}. Times ${k} makes the number ${k} times as big. ${how}` },
+    { v: k === 10 ? n * 100 : n * 10, tag: k === 10 ? 'Two zeros instead of one' : 'One zero instead of two', say: `Count the zeros in ${k}: ${k === 10 ? 'one' : 'two'}. ${how}` },
+    { v: k === 10 ? n * 1000 : n * 1000, tag: 'Too many zeros', say: `That has too many zeros. ${how}` },
+    { v: Number(String(n) + String(n).slice(-1)), tag: 'Repeated a digit', say: `A 0 holds the ones place, not a copy of a digit. ${how}` },
+    { v: n, tag: 'Left off the zeros', say: `${n} has not moved. Times ${k} adds ${zeros} at the end. ${how}` }
+  ], r);
+}
+
+/* PV6 MULTIPLES OF 10: a × (b tens), a 2–9, b 2–9 */
+function multiplesPool() { const out = []; for (let a = 2; a <= 9; a++) for (let b = 2; b <= 9; b++) out.push([a, b * 10]); return out; }
+function multiplesQ(id, [a, m], { pre, skill, r }) {
+  const b = m / 10, base = a * b, ans = a * m;
+  const how = `${a} ${TIMES} ${m} is ${a} ${TIMES} ${b} tens. ${a} ${TIMES} ${b} = ${base}. ${base} tens is ${fmt(ans)}. So ${a} ${TIMES} ${m} = ${fmt(ans)}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a, b: m }, q: `What is ${a} ${TIMES} ${m}?`, noNear: true, commas: true,
+    ...(pre ? { kind: 'pre' } : { hint: `First ${a} ${TIMES} ${b}. Then make it tens: write a 0.` }),
+    explanation: how
+  }, ans, [
+    { v: base, keep: true, tag: 'Forgot the zero', say: `${base} is ${a} ${TIMES} ${b}. But it is ${b} TENS, so write a 0: ${fmt(ans)}. ${how}` },
+    { v: base * 100, tag: 'Two zeros instead of one', say: `${m} has one 0, so the answer has one 0 after ${base}. ${how}` },
+    { v: (base + 1) * 10, tag: 'Fact off by one', say: `Check the fact: ${a} ${TIMES} ${b} = ${base}. ${how}` },
+    { v: (base - 1) * 10, tag: 'Fact off by one', say: `Check the fact: ${a} ${TIMES} ${b} = ${base}. ${how}` },
+    { v: a + m, tag: 'Added instead of multiplying', say: `You added ${a} + ${m}. ${how}` }
+  ], r);
+}
+
+
+/* ═══ STRAND 4 · ROUNDING — the class's method: benchmarks, halfway, before/past, round (70%) ═══ */
+const PLACE = { 10: 'ten', 100: 'hundred', 1000: 'thousand' };
+
+/* A question whose choices are words ("40 and 50") — one right, three named slips, placed at random. */
+function wordQuestion(base, answer, wrongs, r) {
+  const seen = new Set([answer]);
+  const picked = shuffled(wrongs.filter(w => w.v && !seen.has(w.v) && seen.add(w.v)), r).slice(0, 3);
+  if (picked.length < 3) throw new Error(`${base.id}: fewer than 3 wrong choices for ${base.q}`);
+  const slips = {};
+  picked.forEach(w => { slips[w.v] = { tag: w.tag, say: w.say }; });
+  return { ...base, choices: shuffled([answer, ...picked.map(w => w.v)], r), answer, slips };
+}
+
+/* RO1 THE TWO BENCHMARKS: n between which two tens / hundreds / thousands? */
+function benchPool(unit) {
+  const out = [];
+  const lo = unit === 10 ? 11 : unit === 100 ? 101 : 1001, hi = unit === 10 ? 99 : unit === 100 ? 999 : 9999;
+  const step = unit === 10 ? 1 : unit === 100 ? 7 : 61;
+  for (let n = lo; n <= hi; n += step) if (n % unit) out.push([n, unit]);
+  return out;
+}
+const pair = (a, b) => `${fmt(a)} and ${fmt(b)}`;
+/* halfway questions: one per pair of benchmarks (43 and 47 would both ask "halfway between 40 and 50") */
+function halfPool(unit, big) {
+  const out = [];
+  const lo = big ? 1000 : unit, hi = big ? 9900 : unit * 9;
+  for (let low = lo; low <= hi; low += unit) out.push([low + unit / 2, unit]);
+  return out;
+}
+function benchQ(id, [n, unit], { pre, skill, r }) {
+  const low = Math.floor(n / unit) * unit, high = low + unit, name = PLACE[unit];
+  const how = `Count by ${name}s: ${fmt(low)}, ${fmt(high)}. ${fmt(n)} is more than ${fmt(low)} and less than ${fmt(high)}. It lives between ${pair(low, high)}.`;
+  const smaller = unit / 10;
+  const lowS = Math.floor(n / smaller) * smaller;
+  return wordQuestion({
+    id, skill, round: { n, unit }, q: `${fmt(n)} is between which two ${name}s?`,
+    ...(pre ? { kind: 'pre' } : { hint: `Count by ${name}s. Find the ${name} just below ${fmt(n)} and the ${name} just above it.`, pic: { rline: { n, unit, hideEnds: true } }, explain: { rline: { n, unit, bench: true } } }),
+    explanation: how
+  }, pair(low, high), [
+    ...(smaller >= 10 ? [{ v: pair(lowS, lowS + smaller), tag: 'Used the wrong place', say: `Those are ${PLACE[smaller]}s. The question asks for ${name}s. ${how}` }] : []),
+    { v: pair(low - unit, low), tag: 'One benchmark too low', say: `${fmt(n)} is more than ${fmt(low)}. ${how}` },
+    { v: pair(high, high + unit), tag: 'One benchmark too high', say: `${fmt(n)} is less than ${fmt(high)}. ${how}` },
+    ...(unit < 1000 ? [{ v: pair(Math.floor(n / (unit * 10)) * unit * 10, Math.floor(n / (unit * 10)) * unit * 10 + unit * 10), tag: 'Used the wrong place', say: `Those are ${PLACE[unit * 10]}s. The question asks for ${name}s. ${how}` }] : [])
+  ], r);
+}
+
+/* RO2 HALFWAY: what number is halfway between two benchmarks? */
+function halfwayQ(id, [n, unit], { pre, skill, r }) {
+  const low = Math.floor(n / unit) * unit, high = low + unit, half = low + unit / 2;
+  const how = `Halfway between ${fmt(low)} and ${fmt(high)} is ${fmt(half)}: it is ${fmt(unit / 2)} past ${fmt(low)} and ${fmt(unit / 2)} before ${fmt(high)}.`;
+  return question({
+    id, skill, noNear: true, commas: true, round: { n, unit }, q: `What number is halfway between ${fmt(low)} and ${fmt(high)}?`,
+    ...(pre ? { kind: 'pre' } : { hint: `Halfway is the middle. For ${PLACE[unit]}s, the middle ends in ${fmt(unit / 2)}.`, pic: { rline: { n: half, unit, hideN: true } }, explain: { rline: { n: half, unit, half: true, hideN: true } } }),
+    explanation: how
+  }, half, [
+    { v: low + unit / 10 * 5 + unit / 10, tag: 'Missed the middle', say: `That is past the middle. ${how}` },
+    { v: low + unit / 10 * 4, tag: 'Missed the middle', say: `That is before the middle. ${how}` },
+    ...(unit > 10 ? [{ v: low + 5, tag: 'Halfway of the wrong place', say: `That is halfway for tens. For ${PLACE[unit]}s: ${how}` }] : []),
+    { v: high, tag: 'Gave a benchmark', say: `${fmt(high)} is a benchmark, not the middle. ${how}` },
+    { v: low, tag: 'Gave a benchmark', say: `${fmt(low)} is a benchmark, not the middle. ${how}` }
+  ], r);
+}
+
+/* RO3 / RO4 ROUND to the nearest ten / hundred / thousand */
+function roundQ(id, [n, unit], { pre, skill, r }) {
+  const low = Math.floor(n / unit) * unit, high = low + unit, half = low + unit / 2, name = PLACE[unit];
+  const up = n >= half, ans = up ? high : low, other = up ? low : high;
+  const how = `${fmt(n)} is between ${pair(low, high)}. Halfway is ${fmt(half)}. ${fmt(n)} is ${n === half ? 'exactly halfway, and halfway rounds up' : up ? 'past halfway' : 'before halfway'}, so it rounds ${up ? 'up' : 'down'} to ${fmt(ans)}.`;
+  const tenRound = Math.round(n / (unit / 10)) * (unit / 10);
+  const bigUnit = unit * 10, bigRound = Math.round(n / bigUnit) * bigUnit;
+  return question({
+    id, skill, noNear: true, commas: true, round: { n, unit }, q: `Round ${fmt(n)} to the nearest ${name}.`,
+    ...(pre ? { kind: 'pre' } : { hint: `Find the two ${name}s. Find halfway. Before halfway rounds down; halfway or past rounds up.`, pic: { rline: { n, unit } }, explain: { rline: { n, unit, bench: true, half: true, arrow: ans } } }),
+    explanation: how
+  }, ans, [
+    { v: other, keep: true, tag: up ? 'Rounded down instead of up' : 'Rounded up instead of down', say: `${fmt(other)} is the other benchmark. ${how}` },
+    ...(unit > 10 && tenRound !== ans && tenRound !== n ? [{ v: tenRound, tag: 'Rounded to the wrong place', say: `That is rounded to the nearest ${PLACE[unit / 10]}. The question says ${name}. ${how}` }] : []),
+    ...(bigRound !== ans && bigRound > 0 ? [{ v: bigRound, tag: 'Rounded to the wrong place', say: `That is rounded to the nearest ${PLACE[bigUnit] || bigUnit}. The question says ${name}. ${how}` }] : []),
+    { v: Math.floor(n / unit) * unit + unit * 2, tag: 'One benchmark too high', say: `${fmt(n)} is less than ${fmt(high)}. ${how}` },
+    ...(low - unit > 0 ? [{ v: low - unit, tag: 'One benchmark too low', say: `${fmt(n)} is more than ${fmt(low)}. ${how}` }] : []),
+    { v: n, tag: 'Did not round', say: `Rounding gives a ${name} number. ${how}` }
+  ], r);
+}
+
+
+const PV_LESSONS = ({ watch, step, B }) => [
+  {
+    id: 'PV1', title: 'Ones, Tens, Hundreds', skill: 'Value of a digit',
+    pre: { pool: () => B.valuePool(3), build: B.valueQ },
+    teach: sk => [
+      watch('W1', sk, 'Every digit has a place', [
+        'Look at 347. It has three digits: 3, 4 and 7.',
+        'Count the places from the right: ones, tens, hundreds.',
+        'The 7 is in the ones place. The 4 is in the tens place. The 3 is in the hundreds place.',
+        'The 4 is in the tens place, so it is worth 4 tens. 4 tens is 40.'
+      ], { places: { n: 347, mark: 1 } }),
+      step('S1', sk, 'In 582, which place is the 8 in?', 'tens', [
+        ['ones', 'Count from the right: 2 is in the ones place, 8 is in the tens place.'],
+        ['hundreds', 'Count from the right: ones, tens, hundreds. The 5 is in the hundreds place. The 8 is in the tens place.']
+      ], { pic: { places: { n: 582 } } }),
+      step('S2', sk, 'The 8 is in the tens place. What is the 8 worth?', 80, [
+        [8, '8 is the digit. In the tens place, it is worth 8 tens: 80.'],
+        [800, '800 would be 8 hundreds. The 8 is in the tens place: 80.']
+      ], { explain: { places: { n: 582, mark: 1 } } }),
+      watch('W2', sk, 'The same digit, a different place', [
+        'In 435, the 3 is in the tens place. It is worth 30.',
+        'In 352, the 3 is in the hundreds place. It is worth 300.',
+        'The digit is the same. The place changes what it is worth.'
+      ], { places: { n: 352, mark: 2 } })
+    ],
+    parts: [{ pool: () => B.valuePool(3), build: B.valueQ, n: 10 }]
+  },
+  {
+    id: 'PV2', title: 'Expanded Form', skill: 'Expanded form',
+    pre: { pool: B.expandedPool, build: B.expandedQ },
+    teach: sk => [
+      watch('W1', sk, 'Expanded form', [
+        '347 is 3 hundreds, 4 tens and 7 ones.',
+        'In expanded form we write what each digit is worth: 300 + 40 + 7.',
+        '300 + 40 + 7 = 347.'
+      ], { places: { parts: [300, 40, 7] } }),
+      watch('W2', sk, 'A zero holds a place', [
+        '506 is 5 hundreds, 0 tens and 6 ones.',
+        'There are no tens, but the 0 must stay. It holds the tens place.',
+        '500 + 6 = 506. Without the 0, it would be 56, a much smaller number.'
+      ], { places: { n: 506, mark: 1 } }),
+      step('S1', sk, 'What number is 400 + 20 + 9?', 429, [
+        [492, 'The tens and ones got swapped. 20 is 2 tens, 9 is 9 ones: 429.'],
+        [15, 'You added the digits. Put each one in its place: 4 hundreds, 2 tens, 9 ones: 429.']
+      ], { pic: { places: { parts: [400, 20, 9] } }, explain: { places: { n: 429 } } }),
+      step('S2', sk, 'What number is 700 + 3?', 703, [
+        [73, 'There are no tens. A 0 holds the tens place: 703.'],
+        [730, '3 is 3 ones, not 3 tens. 700 + 3 = 703.']
+      ], { pic: { places: { parts: [700, 3] } }, explain: { places: { n: 703, mark: 1 } } })
+    ],
+    parts: [{ pool: B.expandedPool, build: B.expandedQ, n: 10 }]
+  },
+  {
+    id: 'PV3', title: 'Thousands', skill: 'Value of a digit (thousands)',
+    pre: { pool: () => B.valuePool(4), build: B.valueQ },
+    teach: sk => [
+      watch('W1', sk, 'The thousands place', [
+        'After hundreds comes thousands. 4,823 has four places: thousands, hundreds, tens, ones.',
+        'The comma comes after the thousands digit. It helps you find the thousands.',
+        'The 4 is in the thousands place. It is worth 4,000.',
+        'The 8 is in the hundreds place. It is worth 800.'
+      ], { places: { n: 4823, mark: 3 } }),
+      step('S1', sk, 'In 6,251, which place is the 6 in?', 'thousands', [
+        ['hundreds', 'Count from the right: ones, tens, hundreds, thousands. The 6 is in the thousands place.'],
+        ['ones', 'The ones place is on the right. The 6 is on the left, in the thousands place.']
+      ], { pic: { places: { n: 6251 } } }),
+      step('S2', sk, 'So what is the 6 worth?', 6000, [
+        [600, '600 is 6 hundreds. The 6 is in the thousands place: 6,000.'],
+        [6, '6 is the digit. In the thousands place it is worth 6,000.']
+      ], { explain: { places: { n: 6251, mark: 3 } } })
+    ],
+    parts: [{ pool: () => B.valuePool(4), build: B.valueQ, n: 10 }]
+  },
+  {
+    id: 'PV4', title: 'Times 10', skill: 'Multiply by 10',
+    pre: { pool: () => B.times10Pool(10), build: B.times10Q },
+    teach: sk => [
+      watch('W1', sk, 'Times 10', [
+        '10 × 34 means 10 groups of 34. The number gets 10 times as big.',
+        'Every digit moves one place to the left. The 3 tens become 3 hundreds. The 4 ones become 4 tens.',
+        'Now the ones place is empty. A 0 holds it.',
+        '10 × 34 = 340.'
+      ], { shift: { n: 34, k: 10, show: 340 } }),
+      step('S1', sk, '10 × 52. The 5 tens move one place left. What do they become?', '5 hundreds', [
+        ['5 ones', 'Times 10 moves every digit to the LEFT. 5 tens become 5 hundreds.'],
+        ['5 tens', 'The digit moves. 5 tens become 5 hundreds.']
+      ], { pic: { shift: { n: 52, k: 10 } } }),
+      step('S2', sk, 'So what is 10 × 52?', 520, [
+        [62, '62 is 52 + 10. Times 10: the digits move left and a 0 holds the ones place: 520.'],
+        [5200, 'That has two zeros. 10 has one 0: 520.']
+      ], { explain: { shift: { n: 52, k: 10, show: 520 } } })
+    ],
+    parts: [{ pool: () => B.times10Pool(10), build: B.times10Q, n: 10 }]
+  },
+  {
+    id: 'PV5', title: 'Times 100', skill: 'Multiply by 100',
+    pre: { pool: () => B.times10Pool(100), build: B.times10Q },
+    teach: sk => [
+      watch('W1', sk, 'Times 100', [
+        '100 × 23 makes the number 100 times as big.',
+        'Every digit moves two places to the left.',
+        'Two places are now empty. Two 0s hold them.',
+        '100 × 23 = 2,300.'
+      ], { shift: { n: 23, k: 100, show: 2300 } }),
+      step('S1', sk, 'How many zeros does 100 have?', 2, [
+        [1, 'Count again: 1, 0, 0. That is two zeros.'],
+        [3, '100 has three digits, but only two of them are zeros.']
+      ]),
+      step('S2', sk, 'So what is 100 × 7?', 700, [
+        [70, '70 has one 0. 100 has two 0s: 700.'],
+        [107, '107 is 100 + 7. Times 100: write 7, then two 0s: 700.']
+      ], { explain: { shift: { n: 7, k: 100, show: 700 } } })
+    ],
+    parts: [{ pool: () => B.times10Pool(100), build: B.times10Q, n: 10 }]
+  },
+  {
+    id: 'PV6', title: 'Multiples of 10', skill: 'Multiply by a multiple of 10',
+    pre: { pool: B.multiplesPool, build: B.multiplesQ },
+    teach: sk => [
+      watch('W1', sk, 'Times tens', [
+        '3 × 40. 40 is 4 tens.',
+        'So 3 × 40 is 3 × 4 tens.',
+        '3 × 4 = 12. 12 tens is 120.',
+        'So 3 × 40 = 120. Do the fact, then write the 0.'
+      ], { shift: { n: 12, k: 10, show: 120 } }),
+      step('S1', sk, '6 × 30. First do the fact. What is 6 × 3?', 18, [
+        [9, '9 is 6 + 3. 6 × 3 = 18.'],
+        [21, '21 is 7 groups of 3. 6 × 3 = 18.']
+      ]),
+      step('S2', sk, '6 × 3 = 18. So what is 6 × 30?', 180, [
+        [18, '18 is the fact. But 30 is 3 TENS, so write the 0: 180.'],
+        [1800, 'That has two zeros. 30 has one 0: 180.']
+      ], { explain: { shift: { n: 18, k: 10, show: 180 } } })
+    ],
+    parts: [{ pool: B.multiplesPool, build: B.multiplesQ, n: 10 }]
+  },
+  {
+    id: 'PV7', title: 'Place Value Check', skill: 'Place value (check)', check: true,
+    teach: sk => [
+      watch('W1', sk, 'The place value check', [
+        'This is the place value check. It has 20 questions.',
+        'Find the place of a digit. Write numbers in expanded form. Multiply by 10, by 100, and by tens.',
+        'There are no hints and no pictures this time.',
+        'Get 14 of 20 right to finish Place Value.'
+      ])
+    ],
+    parts: [
+      { pool: () => B.valuePool(4), build: B.valueQ, n: 5 },
+      { pool: B.expandedPool, build: B.expandedQ, n: 5 },
+      { pool: () => B.times10Pool(10), build: B.times10Q, n: 3 },
+      { pool: () => B.times10Pool(100), build: B.times10Q, n: 2 },
+      { pool: B.multiplesPool, build: B.multiplesQ, n: 5 }
+    ]
+  }
+];
+const RO_LESSONS = ({ watch, step, B }) => {
+  const tens = () => B.benchPool(10);
+  const hundreds3 = () => B.benchPool(100);
+  const hundreds4 = () => { const o = []; for (let n = 1012; n <= 9988; n += 53) if (n % 100) o.push([n, 100]); return o; };
+  const thousands = () => B.benchPool(1000);
+  return [
+    {
+      id: 'RO1', title: 'The Two Benchmarks', skill: 'Find the two benchmarks',
+      pre: { pool: tens, build: B.benchQ },
+      teach: sk => [
+        watch('W1', sk, 'Benchmarks', [
+          'To round 46 to the nearest ten, first find the two tens it lives between.',
+          'Count by tens: 10, 20, 30, 40, 50. 46 is more than 40 and less than 50.',
+          '40 and 50 are the benchmarks. 46 lives between 40 and 50.'
+        ], { rline: { n: 46, unit: 10, bench: true } }),
+        step('S1', sk, '73 is between which two tens?', '70 and 80', [
+          ['7 and 8', '7 and 8 are digits. Count by tens: 70, 80. 73 is between 70 and 80.'],
+          ['60 and 70', '73 is more than 70. Count by tens: 70, 80.']
+        ], { pic: { rline: { n: 73, unit: 10, hideEnds: true } }, explain: { rline: { n: 73, unit: 10, bench: true } } }),
+        watch('W2', sk, 'Benchmarks for hundreds', [
+          'To round 6,284 to the nearest hundred, find the two hundreds it lives between.',
+          'Count by hundreds: 6,200, 6,300. 6,284 is more than 6,200 and less than 6,300.',
+          'Not 6,280 and 6,290: those are tens. The question asks for hundreds.'
+        ], { rline: { n: 6284, unit: 100, bench: true } })
+      ],
+      parts: [
+        { pool: tens, build: B.benchQ, n: 4 },
+        { pool: hundreds3, build: B.benchQ, n: 3 },
+        { pool: hundreds4, build: B.benchQ, n: 3 }
+      ]
+    },
+    {
+      id: 'RO2', title: 'Halfway', skill: 'Find the halfway point',
+      pre: { pool: () => B.halfPool(100, true), build: B.halfwayQ },
+      teach: sk => [
+        watch('W1', sk, 'Halfway', [
+          'Halfway is the middle between the two benchmarks.',
+          'Between 40 and 50, halfway is 45. It is 5 past 40 and 5 before 50.',
+          'Between 600 and 700, halfway is 650. For hundreds, the middle ends in 50.'
+        ], { rline: { n: 45, unit: 10, half: true, hideN: true } }),
+        step('S1', sk, 'What number is halfway between 80 and 90?', 85, [
+          [84, 'The middle of 80 and 90 is 85: 5 past 80 and 5 before 90.'],
+          [90, '90 is a benchmark. The middle is 85.']
+        ], { pic: { rline: { n: 85, unit: 10, hideN: true } }, explain: { rline: { n: 85, unit: 10, half: true, hideN: true } } }),
+        step('S2', sk, 'What number is halfway between 300 and 400?', 350, [
+          [305, '305 is halfway for tens. Between 300 and 400 the middle is 350.'],
+          [345, 'For hundreds, the middle ends in 50: 350.']
+        ], { pic: { rline: { n: 350, unit: 100, hideN: true } }, explain: { rline: { n: 350, unit: 100, half: true, hideN: true } } })
+      ],
+      parts: [
+        { pool: () => B.halfPool(10), build: B.halfwayQ, n: 4 },
+        { pool: () => B.halfPool(100), build: B.halfwayQ, n: 3 },
+        { pool: () => B.halfPool(100, true), build: B.halfwayQ, n: 3 }
+      ]
+    },
+    {
+      id: 'RO3', title: 'Round to the Nearest Ten', skill: 'Round to the nearest ten',
+      pre: { pool: tens, build: B.roundQ },
+      teach: sk => [
+        watch('W1', sk, 'Round to the nearest ten', [
+          'Round 46 to the nearest ten. The benchmarks are 40 and 50.',
+          'Halfway is 45. 46 is past halfway.',
+          'Past halfway rounds up. Halfway rounds up too. Before halfway rounds down.',
+          '46 rounds up to 50.'
+        ], { rline: { n: 46, unit: 10, bench: true, half: true, arrow: 50 } }),
+        step('S1', sk, 'Round 32 to the nearest ten. The benchmarks are 30 and 40. Is 32 before or past halfway (35)?', 'before halfway', [
+          ['past halfway', '32 is less than 35, so it is before halfway.'],
+          ['exactly halfway', 'Halfway is 35. 32 is before it.']
+        ], { pic: { rline: { n: 32, unit: 10, bench: true, half: true } } }),
+        step('S2', sk, 'So 32 rounds to what?', 30, [
+          [40, 'Before halfway rounds DOWN, to 30.'],
+          [32, 'Rounding gives a ten. 32 rounds down to 30.']
+        ], { explain: { rline: { n: 32, unit: 10, bench: true, half: true, arrow: 30 } } })
+      ],
+      parts: [{ pool: () => tens().concat(hundreds3().map(([n]) => [n, 10]).filter(([n]) => n % 10)), build: B.roundQ, n: 10 }]
+    },
+    {
+      id: 'RO4', title: 'Round to the Nearest Hundred', skill: 'Round to the nearest hundred',
+      pre: { pool: hundreds3, build: B.roundQ },
+      teach: sk => [
+        watch('W1', sk, 'Round to the nearest hundred', [
+          'Round 6,284 to the nearest hundred.',
+          'The benchmarks are 6,200 and 6,300. Halfway is 6,250.',
+          '6,284 is past halfway, so it rounds up.',
+          '6,284 rounds to 6,300.'
+        ], { rline: { n: 6284, unit: 100, bench: true, half: true, arrow: 6300 } }),
+        step('S1', sk, 'Round 418 to the nearest hundred. Which two hundreds?', '400 and 500', [
+          ['410 and 420', 'Those are tens. Count by hundreds: 400, 500.'],
+          ['300 and 400', '418 is more than 400. Count by hundreds: 400, 500.']
+        ], { pic: { rline: { n: 418, unit: 100, hideEnds: true } } }),
+        step('S2', sk, 'Halfway is 450. 418 is before halfway. So 418 rounds to what?', 400, [
+          [500, 'Before halfway rounds DOWN: 400.'],
+          [420, '420 is the nearest ten. The question says hundred: 400.']
+        ], { explain: { rline: { n: 418, unit: 100, bench: true, half: true, arrow: 400 } } })
+      ],
+      parts: [
+        { pool: hundreds3, build: B.roundQ, n: 5 },
+        { pool: hundreds4, build: B.roundQ, n: 5 }
+      ]
+    },
+    {
+      id: 'RO5', title: 'Round to the Place Named', skill: 'Round to the place named',
+      pre: { pool: thousands, build: B.roundQ },
+      teach: sk => [
+        watch('W1', sk, 'Read the place first', [
+          'Read the question. It names the place: ten, hundred, or thousand.',
+          'Round 6,284 to the nearest thousand. The benchmarks are 6,000 and 7,000.',
+          'Halfway is 6,500. 6,284 is before halfway.',
+          'So 6,284 rounds down to 6,000. To the nearest hundred, it was 6,300. The place changes the answer.'
+        ], { rline: { n: 6284, unit: 1000, bench: true, half: true, arrow: 6000 } }),
+        step('S1', sk, 'Round 3,742 to the nearest thousand. Which two thousands?', '3,000 and 4,000', [
+          ['3,700 and 3,800', 'Those are hundreds. Count by thousands: 3,000, 4,000.'],
+          ['4,000 and 5,000', '3,742 is less than 4,000. Count by thousands: 3,000, 4,000.']
+        ], { pic: { rline: { n: 3742, unit: 1000, hideEnds: true } } }),
+        step('S2', sk, 'Halfway is 3,500. 3,742 is past halfway. So it rounds to what?', '4,000', [
+          ['3,000', 'Past halfway rounds UP: 4,000.'],
+          ['3,700', '3,700 is the nearest hundred. The question says thousand: 4,000.']
+        ], { explain: { rline: { n: 3742, unit: 1000, bench: true, half: true, arrow: 4000 } } })
+      ],
+      parts: [
+        { pool: hundreds4, build: B.roundQ, n: 4 },
+        { pool: thousands, build: B.roundQ, n: 4 },
+        { pool: tens, build: B.roundQ, n: 2 }
+      ]
+    },
+    {
+      id: 'RO6', title: 'Rounding Check', skill: 'Rounding (check)', check: true,
+      teach: sk => [
+        watch('W1', sk, 'The rounding check', [
+          'This is the rounding check. It has 20 questions.',
+          'Find the benchmarks. Find halfway. Before halfway rounds down. Halfway or past rounds up.',
+          'There are no hints and no pictures this time.',
+          'Get 14 of 20 right to finish Rounding.'
+        ])
+      ],
+      parts: [
+        { pool: hundreds4, build: B.benchQ, n: 4 },
+        { pool: tens, build: B.roundQ, n: 4 },
+        { pool: hundreds3, build: B.roundQ, n: 4 },
+        { pool: hundreds4, build: B.roundQ, n: 4 },
+        { pool: thousands, build: B.roundQ, n: 4 }
+      ]
+    }
+  ];
+};
+LESSONS.push(...PV_LESSONS({ watch, step, B: { valuePool, valueQ, expandedPool, expandedQ, times10Pool, times10Q, multiplesPool, multiplesQ } }));
+LESSONS.push(...RO_LESSONS({ watch, step, B: { benchPool, halfPool, benchQ, halfwayQ, roundQ } }));
 
 /* ═══ A STUDENT'S OWN FACTS ═══
    A missed fact from an earlier try: { op: '+' | '−', a, b }. fits(lessonId, f) says whether the

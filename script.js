@@ -58,8 +58,8 @@ let SESSION_ID = (() => {
 const STRANDS = [
   { id: 'as', icon: '➕', name: 'Adding and Subtracting to 20', lessons: ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6'] },
   { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: ['MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'], after: 'as' },
-  { id: 'pv', icon: '🔢', name: 'Place Value: 10s and 100s', lessons: [], soon: true },
-  { id: 'ro', icon: '🎯', name: 'Rounding', lessons: [], soon: true }
+  { id: 'pv', icon: '🔢', name: 'Place Value: 10s and 100s', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7'] },
+  { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'] }
 ];
 const LESSONS = {
   AS1: { title: 'Count On to Add',                  icon: '🦘', facts: true },
@@ -74,7 +74,20 @@ const LESSONS = {
   MU4: { title: 'Facts: 2s, 5s and 10s',            icon: '✋', facts: true },
   MU5: { title: '3s and 4s',                        icon: '🧩', facts: true },
   MU6: { title: 'Times as Many',                    icon: '📏', facts: true },
-  MU7: { title: 'Multiplication Facts Check',       icon: '🏁', facts: true, check: true, hints: false, pre: false }
+  MU7: { title: 'Multiplication Facts Check',       icon: '🏁', facts: true, check: true, hints: false, pre: false },
+  PV1: { title: 'Ones, Tens, Hundreds',             icon: '🔢' },
+  PV2: { title: 'Expanded Form',                    icon: '🧩' },
+  PV3: { title: 'Thousands',                        icon: '🏔️' },
+  PV4: { title: 'Times 10',                         icon: '🔟' },
+  PV5: { title: 'Times 100',                        icon: '💯' },
+  PV6: { title: 'Multiples of 10',                  icon: '✖️' },
+  PV7: { title: 'Place Value Check',                icon: '🏁', check: true, hints: false, pre: false },
+  RO1: { title: 'The Two Benchmarks',               icon: '📍' },
+  RO2: { title: 'Halfway',                          icon: '↔️' },
+  RO3: { title: 'Round to the Nearest Ten',         icon: '🎯' },
+  RO4: { title: 'Round to the Nearest Hundred',     icon: '🎯' },
+  RO5: { title: 'Round to the Place Named',         icon: '🗺️' },
+  RO6: { title: 'Rounding Check',                   icon: '🏁', check: true, hints: false, pre: false }
 };
 // WHO IS ON A PLAN is not written in this file (the site's code is public). A student is on a plan when the
 // sheet's lab-seed tab has a row for them, form "plan=as,mu,pv,ro" (loadHistory fills PLANS at sign-in).

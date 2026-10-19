@@ -20,11 +20,14 @@
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 global.window = {};
-['as1', 'as2', 'as3', 'as4', 'as5', 'as6', 'mu1', 'mu2', 'mu3', 'mu4', 'mu5', 'mu6', 'mu7', 'words', 'skills'].forEach(f => require(path.join(ROOT, 'data', f + '.js')));
+['as1', 'as2', 'as3', 'as4', 'as5', 'as6', 'mu1', 'mu2', 'mu3', 'mu4', 'mu5', 'mu6', 'mu7', 'pv1', 'pv2', 'pv3', 'pv4', 'pv5', 'pv6', 'pv7', 'ro1', 'ro2', 'ro3', 'ro4', 'ro5', 'ro6', 'words', 'skills'].forEach(f => require(path.join(ROOT, 'data', f + '.js')));
 const LL = require(path.join(ROOT, 'lessons.js'));   // only for part 10 (to BUILD the student's facts); never to check
-const IDS = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6', 'MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'];
+const IDS = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6', 'MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7', 'PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'];
 const M = '−';
 const nums = s => (String(s).match(/\d+/g) || []).map(Number);
+const N = s => Number(String(s).replace(/,/g, ''));              // "6,250" → 6250
+const F = n => Number(n).toLocaleString('en-US');
+const UNIT = { ten: 10, hundred: 100, thousand: 1000 };
 
 /* ── what the question asks, read from its words ── */
 function readQ(q) {
@@ -34,6 +37,26 @@ function readQ(q) {
     return { kind: 'fact', op, a, b, ans: op === '+' ? a + b : a - b };
   }
   if ((m = q.q.match(/^What number and (\d+) make 10\?$/))) return { kind: 'partner', p: +m[1], ans: 10 - +m[1] };
+  if ((m = q.q.match(/^In ([\d,]+), what is the value of the (\d)\?$/))) {
+    const n = N(m[1]), d = +m[2], digs = String(n).split('').reverse().map(Number), p = digs.indexOf(d);
+    return { kind: 'value', n, d, p, digs, ans: d * 10 ** p, ok: p >= 0 && digs.lastIndexOf(d) === p };
+  }
+  if ((m = q.q.match(/^What number is ([\d +]+)\?$/))) {
+    const parts = m[1].split(' + ').map(Number);
+    return { kind: 'expanded', parts, ans: parts.reduce((a, b) => a + b, 0) };
+  }
+  if ((m = q.q.match(/^([\d,]+) is between which two (ten|hundred|thousand)s\?$/))) {
+    const n = N(m[1]), unit = UNIT[m[2]], low = Math.floor(n / unit) * unit;
+    return { kind: 'bench', n, unit, low, ans: `${F(low)} and ${F(low + unit)}` };
+  }
+  if ((m = q.q.match(/^What number is halfway between ([\d,]+) and ([\d,]+)\?$/))) {
+    const a = N(m[1]), b = N(m[2]);
+    return { kind: 'halfway', low: a, high: b, unit: b - a, ans: (a + b) / 2 };
+  }
+  if ((m = q.q.match(/^Round ([\d,]+) to the nearest (ten|hundred|thousand)\.$/))) {
+    const n = N(m[1]), unit = UNIT[m[2]], low = Math.floor(n / unit) * unit, half = low + unit / 2;
+    return { kind: 'round', n, unit, low, high: low + unit, half, ans: n >= half ? low + unit : low };
+  }
   if ((m = q.q.match(/^What is (\d+) × (\d+)\?$/))) return { kind: 'fact', op: '×', a: +m[1], b: +m[2], ans: +m[1] * +m[2] };
   if ((m = q.q.match(/^There are (\d+) groups\. Each group has (\d+)\. How many in all\?$/))) return { kind: 'groups', op: '×', a: +m[1], b: +m[2], ans: +m[1] * +m[2] };
   if ((m = q.q.match(/^An array has (\d+) rows\. Each row has (\d+) dots\. How many dots in all\?$/))) return { kind: 'array', op: '×', a: +m[1], b: +m[2], ans: +m[1] * +m[2] };
@@ -48,14 +71,14 @@ function readQ(q) {
 /* ── every "x + y = z" / "x − y = z" in a text must be true ── */
 function badEquations(text) {
   const bad = [];
-  const re = /(?:^|[^\d+−×] ?)(\d+(?: [+−×] \d+)+) = (\d+)/g;
+  const re = /(?:^|[^\d+−×,] ?)(\d[\d,]*(?: [+−×] \d[\d,]*)+) = (\d[\d,]*)/g;
   let m;
   while ((m = re.exec(text))) {
-    const toks = m[1].split(' ');
+    const toks = m[1].split(' ').map(t => t.replace(/,/g, ''));
     let v;
     if (toks.includes('×')) v = toks.filter((_, i) => i % 2 === 0).reduce((p, x) => p * +x, 1);
     else { v = +toks[0]; for (let i = 1; i < toks.length; i += 2) v = toks[i] === '+' ? v + +toks[i + 1] : v - +toks[i + 1]; }
-    if (v !== +m[2]) bad.push(`${m[1]} = ${m[2]}`);
+    if (v !== N(m[2])) bad.push(`${m[1]} = ${m[2]}`);
   }
   return bad;
 }
@@ -123,6 +146,40 @@ function slipFits(tag, pick, R, lesson, q) {
     case 'Difference off by a little':
     case 'Off by a little':
       return d !== 0 && Math.abs(d) <= 4;
+    case 'Gave the digit, not its value': return R.kind === 'value' && pick === R.d;
+    case 'One place too far left': return R.kind === 'value' && pick === R.d * 10 ** (R.p + 1);
+    case 'Two places too far left': return R.kind === 'value' && pick === R.d * 10 ** (R.p + 2);
+    case 'One place too far right': return R.kind === 'value' && pick === R.d * 10 ** (R.p - 1);
+    case 'Gave the whole number': return R.kind === 'value' && pick === R.n;
+    case 'Left out the zero in the tens place': return R.kind === 'expanded' && String(pick) === String(R.ans).replace(/^(\d)0(\d)$/, '$1$2');
+    case 'Swapped the tens and ones': return R.kind === 'expanded' && String(pick) === String(R.ans).replace(/^(\d)(\d)(\d)$/, '$1$3$2');
+    case 'Added the digits': return R.kind === 'expanded' && pick === String(R.ans).split('').reduce((a, b) => a + +b, 0);
+    case 'Hundreds off by one': return R.kind === 'expanded' && Math.abs(pick - R.ans) === 100;
+    case 'Tens off by one': return R.kind === 'expanded' && Math.abs(pick - R.ans) === 10;
+    case 'Two zeros instead of one': return R.op === '×' && pick === ans * 10;
+    case 'One zero instead of two': return R.op === '×' && pick * 10 === ans;
+    case 'Too many zeros': return R.op === '×' && pick > ans && pick % (ans * 10) === 0;
+    case 'Repeated a digit': return R.op === '×' && String(pick) === String(Math.min(R.a, R.b) === 10 || Math.min(R.a, R.b) === 100 ? Math.max(R.a, R.b) : R.b).replace(/(\d)$/, '$1$1');
+    case 'Left off the zeros': return R.op === '×' && (R.a === 10 || R.a === 100) && pick === R.b;
+    case 'Forgot the zero': return R.op === '×' && pick * 10 === ans;
+    case 'Fact off by one': return R.op === '×' && Math.abs(pick - ans) === 10;
+    case 'Used the wrong place': {
+      if (R.kind !== 'bench') return false;
+      return [R.unit / 10, R.unit * 10].filter(u => u >= 10).some(u => { const l = Math.floor(R.n / u) * u; return pick === `${F(l)} and ${F(l + u)}`; });
+    }
+    case 'One benchmark too low':
+      if (R.kind === 'bench') return pick === `${F(R.low - R.unit)} and ${F(R.low)}`;
+      return R.kind === 'round' && pick === R.low - R.unit;
+    case 'One benchmark too high':
+      if (R.kind === 'bench') return pick === `${F(R.low + R.unit)} and ${F(R.low + 2 * R.unit)}`;
+      return R.kind === 'round' && pick === R.low + 2 * R.unit;
+    case 'Missed the middle': return R.kind === 'halfway' && Math.abs(pick - R.ans) === R.unit / 10;
+    case 'Halfway of the wrong place': return R.kind === 'halfway' && pick === R.low + 5;
+    case 'Gave a benchmark': return R.kind === 'halfway' && (pick === R.low || pick === R.high);
+    case 'Rounded down instead of up': return R.kind === 'round' && R.ans === R.high && pick === R.low;
+    case 'Rounded up instead of down': return R.kind === 'round' && R.ans === R.low && pick === R.high;
+    case 'Rounded to the wrong place': return R.kind === 'round' && [R.unit / 10, R.unit * 10].some(u => u >= 10 && pick === Math.round(R.n / u) * u);
+    case 'Did not round': return R.kind === 'round' && pick === R.n;
     case 'Added the two numbers': case 'Added rows and columns': case 'Added instead of multiplying': case 'Added instead of times as many':
       return R.op === '×' && pick === R.a + R.b;
     case 'Counted one group too few': return R.kind === 'groups' && pick === ans - R.b;
@@ -147,7 +204,7 @@ function slipFits(tag, pick, R, lesson, q) {
 function inLimits(lesson, R, q) {
   if (q.mine) return true;                 // a student's own fact is whatever they missed (checked by part 10)
   const within = n => n >= 0 && n <= 20;
-  if (R.op !== '×' && !within(R.ans)) return false;
+  if (R.op !== '×' && typeof R.ans === 'number' && !/^(PV|RO)/.test(lesson) && !within(R.ans)) return false;
   switch (lesson) {
     case 'AS1': return R.kind === 'fact' && R.op === '+' && Math.min(R.a, R.b) >= 1 && Math.min(R.a, R.b) <= 3 && R.a + R.b <= 20;
     case 'AS2':
@@ -169,6 +226,18 @@ function inLimits(lesson, R, q) {
     case 'MU5': return R.kind === 'fact' && R.op === '×' && [3, 4].includes(R.b) && R.a >= 1 && R.a <= 10;
     case 'MU6': return R.kind === 'times' && R.a >= 2 && R.a <= 5 && R.b >= 2 && R.b <= 9;
     case 'MU7': return R.kind === 'fact' && R.op === '×' && [2, 3, 4, 5, 10].includes(R.b) && R.a >= 2 && R.a <= 10;
+    case 'PV1': return R.kind === 'value' && R.n >= 100 && R.n <= 999 && R.p >= 1;
+    case 'PV2': return R.kind === 'expanded' && R.ans >= 100 && R.ans <= 999;
+    case 'PV3': return R.kind === 'value' && R.n >= 1000 && R.n <= 9999 && R.p >= 1;
+    case 'PV4': return R.kind === 'fact' && R.a === 10 && R.b >= 2 && R.b <= 99;
+    case 'PV5': return R.kind === 'fact' && R.a === 100 && R.b >= 2 && R.b <= 49;
+    case 'PV6': return R.kind === 'fact' && R.a >= 2 && R.a <= 9 && R.b % 10 === 0 && R.b >= 20 && R.b <= 90;
+    case 'PV7': return ['PV2', 'PV3', 'PV4', 'PV5', 'PV6'].some(id => inLimits(id, R, q));
+    case 'RO1': return R.kind === 'bench';
+    case 'RO2': return R.kind === 'halfway' && [10, 100].includes(R.unit);
+    case 'RO3': return R.kind === 'round' && R.unit === 10;
+    case 'RO4': return R.kind === 'round' && R.unit === 100;
+    case 'RO5': case 'RO6': return R.kind === 'round' || R.kind === 'bench';
     case 'AS6':
       if (R.kind !== 'fact') return false;
       return R.op === '+' ? R.ans <= 20 : R.a >= 11 && R.a <= 18 && R.b <= 9;
@@ -185,6 +254,9 @@ function picLeaks(q) {
   if (p.teen && p.teen.show != null) return true;
   if (p.bond && !p.bond.ask) return true;
   if ((p.groups && p.groups.show != null) || (p.array && p.array.show != null) || (p.bars && p.bars.show != null)) return true;
+  if ((p.places && p.places.mark != null) || (p.shift && p.shift.show != null)) return true;
+  if (p.rline && /is between which two/.test(q.q) && !p.rline.hideEnds) return true;   // the line's two ends ARE the answer
+  if (p.rline && (p.rline.arrow != null || (p.rline.half && !/halfway/.test(q.q) ? false : p.rline.half) || p.rline.bench)) return true;
   return false;
 }
 
@@ -194,16 +266,19 @@ function checkItem(lesson, q) {
   const R = readQ(q);
   if (!R) { out.push(`${q.id}: question text not understood: "${q.q}"`); return out; }
   if (R.kind === 'family' && !R.stated) out.push(`${q.id}: the adding fact in the question is wrong`);
-  if (String(R.ans) !== q.answer) out.push(`${q.id}: answer ${q.answer}, worked out ${R.ans}`);
+  const same = (a, b) => (typeof a === 'string' ? a === b : N(b) === a);
+  if (!same(R.ans, q.answer)) out.push(`${q.id}: answer ${q.answer}, worked out ${R.ans}`);
+  if (R.kind === 'value' && !R.ok) out.push(`${q.id}: the digit is not in the number exactly once`);
+  if (typeof R.ans === 'number' && R.ans >= 1000 && !/,/.test(q.answer)) out.push(`${q.id}: ${q.answer} is shown without its comma`);
   if (!Array.isArray(q.choices) || q.choices.length !== 4) out.push(`${q.id}: ${q.choices && q.choices.length} choices`);
   if (new Set(q.choices).size !== q.choices.length) out.push(`${q.id}: a choice is listed twice`);
   if (!q.choices.includes(q.answer)) out.push(`${q.id}: the answer is not a choice`);
-  if (q.choices.filter(c => c === String(R.ans)).length !== 1) out.push(`${q.id}: not exactly one right choice`);
+  if (q.choices.filter(c => same(R.ans, c)).length !== 1) out.push(`${q.id}: not exactly one right choice`);
   q.choices.filter(c => c !== q.answer).forEach(c => {
-    if (!/^\d+$/.test(c)) out.push(`${q.id}: choice "${c}" is not a whole number`);
+    if (R.kind === 'bench' ? !/^[\d,]+ and [\d,]+$/.test(c) : !/^\d{1,3}(,\d{3})*$/.test(c)) out.push(`${q.id}: choice "${c}" is not written right`);
     const s = q.slips && q.slips[c];
     if (!s || !s.say || !s.tag) { out.push(`${q.id}: wrong choice ${c} has no mistake note`); return; }
-    if (!slipFits(s.tag, +c, R, lesson, q)) out.push(`${q.id}: slip "${s.tag}" does not fit the pick ${c} (answer ${R.ans})`);
+    if (!slipFits(s.tag, R.kind === 'bench' ? c : N(c), R, lesson, q)) out.push(`${q.id}: slip "${s.tag}" does not fit the pick ${c} (answer ${R.ans})`);
   });
   Object.keys(q.slips || {}).forEach(k => { if (!q.choices.includes(k)) out.push(`${q.id}: a note for ${k}, which is not a choice`); });
   badEquations(allText(q)).forEach(e => out.push(`${q.id}: false equation "${e}"`));
@@ -214,8 +289,8 @@ function checkItem(lesson, q) {
   if (lesson === 'AS6' && (q.pic || q.hint)) out.push(`${q.id}: the facts check has a picture or hint`);
   if (q.fact) {
     const fv = q.fact.op === '+' ? q.fact.a + q.fact.b : q.fact.op === '×' ? q.fact.a * q.fact.b : q.fact.a - q.fact.b;
-    if (String(fv) !== q.answer) out.push(`${q.id}: the fact tag ${q.fact.a} ${q.fact.op} ${q.fact.b} does not give the answer`);
-  } else if (R.kind !== 'partner') out.push(`${q.id}: no fact tag (a miss would not reach the student's list)`);
+    if (fv !== N(q.answer)) out.push(`${q.id}: the fact tag ${q.fact.a} ${q.fact.op} ${q.fact.b} does not give the answer`);
+  } else if (!['partner', 'value', 'expanded', 'bench', 'halfway', 'round'].includes(R.kind)) out.push(`${q.id}: no fact tag (a miss would not reach the student's list)`);
   // Count On / Count Back notes start at the right number
   if (lesson === 'AS1' && R.kind === 'fact') Object.values(q.slips).concat([{ say: q.explanation }]).forEach(s => {
     const m = /Start at (\d+)\./.exec(s.say); if (m && +m[1] !== Math.max(R.a, R.b)) out.push(`${q.id}: Count On starts at ${m[1]}, not the bigger number`);
@@ -237,10 +312,11 @@ function checkTeach(q) {
     q.choices.filter(c => c !== q.answer).forEach(c => { if (!q.slips[c]) out.push(`${q.id}: step choice ${c} has no note`); });
   }
   if (q.kind === 'watch' && !q.text) out.push(`${q.id}: worked example with no words`);
+  if (q.kind === 'step' && q.pic && q.pic.rline && /which two/.test(q.q) && !q.pic.rline.hideEnds) out.push(`${q.id}: the step's picture shows the benchmarks it asks for`);
   return out;
 }
 
-const factKey = q => { const R = readQ(q); return !R ? q.q : R.op === '×' ? (R.kind === 'fact' ? `x${Math.min(R.a, R.b)}x${Math.max(R.a, R.b)}` : `${R.kind}${R.a}x${R.b}`) : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
+const factKey = q => { const R = readQ(q); return !R ? q.q : ['value', 'expanded', 'bench', 'halfway', 'round'].includes(R.kind) ? `${R.kind}:${q.q}` : R.op === '×' ? (R.kind === 'fact' ? `x${Math.min(R.a, R.b)}x${Math.max(R.a, R.b)}` : `${R.kind}${R.a}x${R.b}`) : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
 
 function checkLesson(id) {
   const out = [];
@@ -262,8 +338,10 @@ function checkLesson(id) {
       const k = factKey(q);
       if (seen.has(k)) out.push(`${where} ${q.id}: the same fact twice in one version (${q.q})`);
       seen.add(k);
-      const sorted = q.choices.map(Number).sort((x, y) => x - y);
-      ranks[sorted.indexOf(Number(q.answer))]++;
+      if (!/^RO1|^RO6/.test(id) || !/ and /.test(q.answer)) {
+        const sorted = q.choices.map(N).sort((x, y) => x - y);
+        ranks[sorted.indexOf(N(q.answer))]++;
+      }
       if (!(window.SKILLS || {})[q.id]) out.push(`${where} ${q.id}: no skill tag`);
     });
     if (vi > 0) {
@@ -271,12 +349,15 @@ function checkLesson(id) {
       const fresh = scored.filter(q => !v1facts.has(factKey(q))).length;
       // Make 10 has only 9 ten partners to go round. The multiplication facts lessons draw from small sets (the 3s
       // and 4s are 19 facts), so a retry repeats some facts by nature; it still gets a different set and order.
-      const need = id === 'AS2' ? 0.5 : /^MU[3457]$/.test(id) ? 0.3 : /^MU/.test(id) ? 0.5 : 0.7;
+      const need = id === 'AS2' ? 0.5 : /^(MU[3457]|PV[45])$/.test(id) ? 0.3 : /^(MU|PV|RO)/.test(id) ? 0.5 : 0.7;
       if (fresh < scored.length * need) out.push(`${where}: only ${fresh} of ${scored.length} questions are new facts`);
     }
   });
   const n = ranks.reduce((a, b) => a + b, 0);
-  ranks.forEach((r, i) => { if (r > n * 0.45) out.push(`${id}: the right answer is choice #${i + 1} in order ${r} of ${n} times`); });
+  // Place value and rounding choices are named mistakes, which sit where they sit (the whole number is always bigger than
+  // a digit's value; times 100's mistakes are mostly smaller), so those lessons may lean more than the facts lessons.
+  const lean = /^PV/.test(id) ? 0.8 : /^RO/.test(id) ? 0.6 : 0.45;
+  ranks.forEach((r, i) => { if (r > n * lean) out.push(`${id}: the right answer is choice #${i + 1} in order ${r} of ${n} times`); });
   return out;
 }
 
@@ -347,6 +428,13 @@ function plants() {
     ['group picture shows the total', 'MU1', () => { const q = clone(window.LAB_MU1.find(x => !x.kind)); q.pic = { groups: { ...q.pic.groups, show: +q.answer } }; return q; }],
     ['wrong skip-count list', 'MU3', () => { const q = clone(window.LAB_MU3.find(x => !x.kind)); q.explanation = q.explanation.replace(/: ([\d, ]+)\./, (m, l) => `: ${nums(l).map(x => x + 1).join(', ')}.`); return q; }],
     ['false adding chain', 'MU1', () => { const q = clone(window.LAB_MU1.find(x => !x.kind)); q.explanation = q.explanation.replace(/ = (\d+)\. So/, (m, v) => ` = ${+v + 1}. So`); return q; }],
+    ['place value: the digit marked right', 'PV1', () => { const q = clone(window.LAB_PV1.find(x => !x.kind)); const R = readQ(q); q.answer = String(R.d); if (!q.choices.includes(q.answer)) q.choices[3] = q.answer; return q; }],
+    ['expanded form: the zero dropped in the answer', 'PV2', () => { const q = clone(window.LAB_PV2_V.flat().find(x => !x.kind && /^\d0\d$/.test(x.answer))); q.answer = String(N(q.answer)).replace(/^(\d)0(\d)$/, '$1$2'); return q; }],
+    ['rounding: rounded the wrong way', 'RO3', () => { const q = clone(window.LAB_RO3.find(x => !x.kind)); const R = readQ(q); q.answer = String(R.ans === R.high ? R.low : R.high); return q; }],
+    ['rounding: the arrow shows under the question', 'RO4', () => { const q = clone(window.LAB_RO4.find(x => !x.kind)); q.pic = { rline: { ...q.pic.rline, arrow: N(q.answer) } }; return q; }],
+    ['benchmark question shows the ends', 'RO1', () => { const q = clone(window.LAB_RO1.find(x => !x.kind)); q.pic = { rline: { ...q.pic.rline, hideEnds: false } }; return q; }],
+    ['halfway in the wrong place', 'RO2', () => { const q = clone(window.LAB_RO2.find(x => !x.kind)); const R = readQ(q); q.answer = String(R.low + R.unit / 10 * 4); if (!q.choices.includes(q.answer)) q.choices[3] = q.answer; return q; }],
+    ['a 4-digit answer without its comma', 'PV3', () => { const q = clone(window.LAB_PV3.find(x => !x.kind)); const plain = String(N(q.answer)); q.choices = q.choices.map(c => (c === q.answer ? plain : c)); q.answer = plain; return q; }],
     ['times-as-many outside the lesson', 'MU6', () => { const q = clone(window.LAB_MU6.find(x => !x.kind)); q.q = q.q.replace(/has (\d+) times as many/, 'has 9 times as many'); return q; }]
   ];
   let caught = 0;

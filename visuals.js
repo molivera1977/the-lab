@@ -132,6 +132,60 @@
       `<div class="lv-bars-row" aria-hidden="true"><span class="lv-bar-name">${cfg.t} times</span>${cell.repeat(cfg.t)}${cfg.show != null ? `<span class="lv-bar-total">= ${cfg.show}</span>` : '<span class="lv-bar-total">= ?</span>'}</div></div>`;
   }
 
+  /* ── PLACE CHART ── cfg = { n, mark } (mark = a place: 0 ones, 1 tens …) or { parts: [300, 40, 7] } (expanded form cards) */
+  const PLACE_NAMES = ['Ones', 'Tens', 'Hundreds', 'Thousands'];
+  function placesHTML(cfg) {
+    if (cfg.parts) {
+      const said = `Expanded form parts: ${cfg.parts.join(', ')}.`;
+      return `<div class="lv lv-parts" role="img" aria-label="${esc(said)}">${cfg.parts.map(p => `<span class="lv-part" aria-hidden="true">${Number(p).toLocaleString('en-US')}</span>`).join('<span class="lv-plus" aria-hidden="true">+</span>')}</div>`;
+    }
+    const d = String(cfg.n).split('').reverse();
+    const cols = d.map((ch, i) => i).reverse();
+    const head = cols.map(i => `<th class="${i === cfg.mark ? 'lv-mark' : ''}">${PLACE_NAMES[i]}</th>`).join('');
+    const row = cols.map(i => `<td class="${i === cfg.mark ? 'lv-mark' : ''}">${d[i]}</td>`).join('');
+    const val = cfg.mark != null ? `${d[cfg.mark]} ${PLACE_NAMES[cfg.mark].toLowerCase()} = ${(Number(d[cfg.mark]) * 10 ** cfg.mark).toLocaleString('en-US')}` : '';
+    const said = `A place chart for ${Number(cfg.n).toLocaleString('en-US')}.` + (val ? ` ${val}.` : '');
+    return `<div class="lv lv-places" role="img" aria-label="${esc(said)}"><table class="lv-place-table" aria-hidden="true"><tr>${head}</tr><tr>${row}</tr></table>` +
+      (val ? `<div class="lv-cap" aria-hidden="true">${val}</div>` : '') + `</div>`;
+  }
+  /* ── TIMES 10 / 100: the digits move left, zeros hold the empty places ── cfg = { n, k, show } */
+  function shiftHTML(cfg) {
+    const z = cfg.k === 10 ? 1 : 2;
+    const top = String(cfg.n), width = top.length + z;
+    const cells = (str, zeros) => { const a = str.padStart(width, ' ').split(''); return a.map((ch, i) => `<td class="${zeros && i >= width - z ? 'lv-zero' : ''}">${ch === ' ' ? '' : ch}</td>`).join(''); };
+    const said = cfg.show != null ? `${cfg.n} times ${cfg.k}: the digits move ${z === 1 ? 'one place' : 'two places'} left and ${z === 1 ? 'a 0 fills' : 'two 0s fill'} the empty place${z === 1 ? '' : 's'}. ${cfg.show}.` : `${cfg.n} times ${cfg.k}.`;
+    return `<div class="lv lv-shift" role="img" aria-label="${esc(said)}"><table class="lv-place-table" aria-hidden="true"><tr>${cells(top, false)}<td class="lv-shift-lab">${cfg.n}</td></tr>` +
+      (cfg.show != null ? `<tr>${cells(top + '0'.repeat(z), true)}<td class="lv-shift-lab">× ${cfg.k} = ${Number(cfg.show).toLocaleString('en-US')}</td></tr>` : '') + `</table></div>`;
+  }
+
+  /* ── ROUNDING LINE: from the benchmark below to the one above ──
+     cfg = { n, unit, bench, half, arrow, hideN }  bench = name the two benchmarks; half = mark halfway;
+     arrow = the benchmark it rounds to; hideN = do not mark n (a halfway question) */
+  function rlineSVG(cfg) {
+    const unit = cfg.unit, low = Math.floor(cfg.n / unit) * unit, high = low + unit, half = low + unit / 2;
+    const W = 700, pad = 60, y = 100, x = v => pad + (v - low) / unit * (W - pad * 2);
+    const f = v => Number(v).toLocaleString('en-US');
+    let s = `<line x1="${pad - 20}" y1="${y}" x2="${W - pad + 20}" y2="${y}" class="lv-axis"/>`;
+    for (let i = 0; i <= 10; i++) {
+      const v = low + i * unit / 10, big = i === 0 || i === 10, mid = i === 5;
+      s += `<line x1="${x(v)}" y1="${y - (big ? 14 : mid ? 11 : 7)}" x2="${x(v)}" y2="${y + (big ? 14 : mid ? 11 : 7)}" class="lv-tick"/>`;
+    }
+    // hideEnds: a "which two benchmarks?" question — the ends are its answer, so they show "?" until after the answer
+    s += `<text x="${x(low)}" y="${y + 40}" class="lv-num${cfg.bench ? ' lv-bench' : ''}">${cfg.hideEnds ? '?' : f(low)}</text>`;
+    s += `<text x="${x(high)}" y="${y + 40}" class="lv-num${cfg.bench ? ' lv-bench' : ''}">${cfg.hideEnds ? '?' : f(high)}</text>`;
+    if (cfg.half) s += `<text x="${x(half)}" y="${y + 40}" class="lv-num lv-half">${f(half)}</text><text x="${x(half)}" y="${y + 62}" class="lv-tag lv-half">halfway</text>`;
+    if (!cfg.hideN) {
+      s += `<circle cx="${x(cfg.n)}" cy="${y}" r="9" class="lv-dot-start"/><text x="${x(cfg.n)}" y="${y - 22}" class="lv-num lv-start">${f(cfg.n)}</text>`;
+    }
+    if (cfg.arrow != null) {
+      const a = x(cfg.n), b = x(cfg.arrow);
+      s += `<path d="M ${a} ${y - 36} Q ${(a + b) / 2} ${y - 70} ${b} ${y - 18}" class="lv-hop lv-round-arrow"/><circle cx="${b}" cy="${y}" r="9" class="lv-dot-end"/>`;
+    }
+    const said = (cfg.hideEnds ? 'A number line' : `A number line from ${f(low)} to ${f(high)}`) + (cfg.hideN ? '' : `, with ${f(cfg.n)} marked`) + (cfg.half ? `. Halfway is ${f(half)}` : '') +
+      (cfg.arrow != null ? `. ${f(cfg.n)} rounds to ${f(cfg.arrow)}` : '') + '.';
+    return `<div class="lv lv-line-wrap"><svg viewBox="0 0 ${W} 170" class="lv-line" role="img" aria-label="${esc(said)}">${s}</svg></div>`;
+  }
+
   function one(pic) {
     if (!pic) return '';
     if (pic.line) return lineSVG(pic.line);
@@ -141,6 +195,9 @@
     if (pic.groups) return groupsHTML(pic.groups);
     if (pic.array) return arrayHTML(pic.array);
     if (pic.bars) return barsHTML(pic.bars);
+    if (pic.places) return placesHTML(pic.places);
+    if (pic.shift) return shiftHTML(pic.shift);
+    if (pic.rline) return rlineSVG(pic.rline);
     return '';
   }
   /* Picture under the question — set up, never solved */
@@ -151,7 +208,7 @@
     return out ? `<div class="lv-explain">${out}</div>` : '';
   }
 
-  const api = { lineSVG, framesHTML, teenHTML, bondHTML, groupsHTML, arrayHTML, barsHTML, picHTML, explainHTML };
+  const api = { lineSVG, framesHTML, teenHTML, bondHTML, groupsHTML, arrayHTML, barsHTML, placesHTML, shiftHTML, rlineSVG, picHTML, explainHTML };
   root.LabV = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

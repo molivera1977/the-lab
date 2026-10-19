@@ -896,3 +896,16 @@ button.answer-btn.incorrect { background: #f8d7da; border-color: #dc3545; color:
 .lv-bar-name { width: 90px; font-weight: bold; font-size: 1rem; color: #2c3e50; }
 .lv-bar-cell { width: 70px; height: 40px; border: 2px solid #1f618d; background: #d6eaf8; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; }
 .lv-bar-total { margin-left: 12px; font-weight: bold; font-size: 1.2rem; color: #1e8449; }
+
+/* Strands 3 and 4 pictures: place chart, expanded-form cards, times 10, rounding line */
+.lv-place-table { border-collapse: collapse; margin: 0 auto; }
+.lv-place-table th, .lv-place-table td { border: 2px solid #34495e; padding: 6px 14px; text-align: center; font-size: 1.3rem; font-weight: bold; min-width: 56px; }
+.lv-place-table th { font-size: 0.85rem; background: #f4f6f7; }
+.lv-place-table .lv-mark { background: #fff3c4; }
+.lv-place-table td.lv-zero { color: #1e8449; background: #e9f7ef; }
+.lv-place-table td.lv-shift-lab { border: none; font-size: 1.1rem; color: #1f618d; text-align: left; }
+.lv-parts { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.lv-part { border: 2px solid #1f618d; background: #d6eaf8; border-radius: 8px; padding: 8px 16px; font-size: 1.3rem; font-weight: bold; }
+.lv-num.lv-bench { fill: #1f618d; font-size: 20px; }
+.lv-num.lv-half, .lv-tag.lv-half { fill: #b9770e; }
+.lv-round-arrow { stroke: #27ae60; stroke-width: 4; }
