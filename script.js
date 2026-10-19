@@ -58,8 +58,8 @@ let SESSION_ID = (() => {
 const STRANDS = [
   { id: 'as', icon: '➕', name: 'Adding and Subtracting to 20', lessons: ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6'] },
   { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: ['MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'], after: 'as' },
-  { id: 'pv', icon: '🔢', name: 'Place Value', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8', 'PV9'] },
-  { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'] }
+  { id: 'pv', icon: '🔢', name: 'Place Value', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8', 'PV9'], after: 'as' },
+  { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'], after: 'as' }
 ];
 const LESSONS = {
   AS1: { title: 'Count On to Add',                  icon: '🦘', facts: true },
