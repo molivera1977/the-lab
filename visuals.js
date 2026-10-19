@@ -17,14 +17,14 @@
   /* ── NUMBER LINE ─────────────────────────────────────
      cfg = { lo, hi, from, jumps, dir }  dir 1 = count on / up, −1 = count back */
   function lineSVG(cfg) {
-    const lo = cfg.lo, hi = cfg.hi, W = 700, pad = 26;
+    const lo = cfg.lo, hi = cfg.hi, W = 700, pad = 26, by = cfg.step || 1;
     const step = (W - pad * 2) / (hi - lo);
     const x = n => pad + (n - lo) * step;
     const y = 112;
     const hops = cfg.jumps || 0, dir = cfg.dir || 1;
-    const end = cfg.from != null ? cfg.from + dir * hops : null;
+    const end = cfg.from != null ? cfg.from + dir * hops * by : null;
     let s = `<line x1="${pad - 8}" y1="${y}" x2="${W - pad + 8}" y2="${y}" class="lv-axis"/>`;
-    for (let n = lo; n <= hi; n++) {
+    for (let n = lo; n <= hi; n += by) {
       const cls = n === cfg.from ? 'lv-num lv-start' : hops && n === end ? 'lv-num lv-end' : 'lv-num';
       s += `<line x1="${x(n)}" y1="${y - 9}" x2="${x(n)}" y2="${y + 9}" class="lv-tick"/>`;
       s += `<text x="${x(n)}" y="${y + 34}" class="${cls}">${n}</text>`;
@@ -34,7 +34,7 @@
       s += `<text x="${x(cfg.from)}" y="${y + 58}" class="lv-tag">start</text>`;
     }
     for (let i = 0; i < hops; i++) {
-      const a = cfg.from + dir * i, b = a + dir;
+      const a = cfg.from + dir * i * by, b = a + dir * by;
       const mid = (x(a) + x(b)) / 2;
       s += `<path d="M ${x(a)} ${y - 6} Q ${mid} ${y - 58} ${x(b)} ${y - 6}" class="lv-hop"/>`;
       s += `<text x="${mid}" y="${y - 44}" class="lv-hop-n">${i + 1}</text>`;
@@ -42,6 +42,7 @@
     if (hops) s += `<circle cx="${x(end)}" cy="${y}" r="9" class="lv-dot-end"/>`;
     const said = cfg.from == null ? `A number line from ${lo} to ${hi}.`
       : !hops ? `A number line from ${lo} to ${hi}. Start at ${cfg.from}.`
+      : by > 1 ? `A number line counting by ${by}s. ${say(hops, 'hop')} of ${by} from ${cfg.from}: you land on ${end}.`
       : `A number line. Start at ${cfg.from}. ${say(hops, 'hop')} ${dir > 0 ? 'up' : 'back'}, one for each number: you land on ${end}.`;
     // no hops: no room needed above the line; no start mark: none below it either
     const top = hops ? 0 : 82, bottom = cfg.from != null ? 180 : 156;
@@ -109,12 +110,37 @@
       `</svg></div>`;
   }
 
+  /* ── EQUAL GROUPS: g circles, n dots in each ── cfg = { g, n, show } */
+  function groupsHTML(cfg) {
+    const circle = `<span class="lv-group" aria-hidden="true">${'<i class="lv-d lv-red"></i>'.repeat(cfg.n)}</span>`;
+    const said = `${say(cfg.g, 'group')} with ${say(cfg.n, 'dot')} in each${cfg.show != null ? `: ${cfg.show} in all` : ''}.`;
+    return `<div class="lv lv-groups" role="img" aria-label="${esc(said)}"><div class="lv-groups-row">${circle.repeat(cfg.g)}</div>` +
+      (cfg.show != null ? `<div class="lv-cap" aria-hidden="true">${Array(cfg.g).fill(cfg.n).join(' + ')} = ${cfg.show}</div>` : '') + `</div>`;
+  }
+  /* ── ARRAY: rows of dots ── cfg = { rows, cols, show } */
+  function arrayHTML(cfg) {
+    const row = `<div class="lv-arow">${'<i class="lv-d lv-blue"></i>'.repeat(cfg.cols)}</div>`;
+    const said = `An array: ${say(cfg.rows, 'row')} of ${say(cfg.cols, 'dot')}${cfg.show != null ? `: ${cfg.show} dots` : ''}.`;
+    return `<div class="lv lv-array" role="img" aria-label="${esc(said)}"><div class="lv-array-box" aria-hidden="true">${row.repeat(cfg.rows)}</div>` +
+      (cfg.show != null ? `<div class="lv-cap" aria-hidden="true">${cfg.rows} × ${cfg.cols} = ${cfg.show}</div>` : '') + `</div>`;
+  }
+  /* ── TIMES AS MANY: one bar of b, and t bars of b ── cfg = { t, b, show } */
+  function barsHTML(cfg) {
+    const cell = `<span class="lv-bar-cell">${cfg.b}</span>`;
+    const said = `A bar of ${cfg.b}, and ${cfg.t} bars of ${cfg.b}${cfg.show != null ? `: ${cfg.show}` : ''}.`;
+    return `<div class="lv lv-bars" role="img" aria-label="${esc(said)}"><div class="lv-bars-row" aria-hidden="true"><span class="lv-bar-name">1 time</span>${cell}</div>` +
+      `<div class="lv-bars-row" aria-hidden="true"><span class="lv-bar-name">${cfg.t} times</span>${cell.repeat(cfg.t)}${cfg.show != null ? `<span class="lv-bar-total">= ${cfg.show}</span>` : '<span class="lv-bar-total">= ?</span>'}</div></div>`;
+  }
+
   function one(pic) {
     if (!pic) return '';
     if (pic.line) return lineSVG(pic.line);
     if (pic.frames) return framesHTML(pic.frames);
     if (pic.teen) return teenHTML(pic.teen);
     if (pic.bond) return bondHTML(pic.bond);
+    if (pic.groups) return groupsHTML(pic.groups);
+    if (pic.array) return arrayHTML(pic.array);
+    if (pic.bars) return barsHTML(pic.bars);
     return '';
   }
   /* Picture under the question — set up, never solved */
@@ -125,7 +151,7 @@
     return out ? `<div class="lv-explain">${out}</div>` : '';
   }
 
-  const api = { lineSVG, framesHTML, teenHTML, bondHTML, picHTML, explainHTML };
+  const api = { lineSVG, framesHTML, teenHTML, bondHTML, groupsHTML, arrayHTML, barsHTML, picHTML, explainHTML };
   root.LabV = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

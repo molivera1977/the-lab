@@ -565,6 +565,279 @@ const LESSONS = [
 ];
 
 
+/* ═══ STRAND 2 · MULTIPLYING (Marcos 10/17: multiplying waits until adding and subtracting are passed) ═══ */
+const TIMES = '×';
+const skip = (k, n) => range(1, n).map(i => i * k).join(', ');
+
+/* MU1 EQUAL GROUPS: g groups of n (g 2–6, n 2–6) */
+function groupsPool() { const o = []; for (let g = 2; g <= 6; g++) for (let n = 2; n <= 6; n++) o.push([g, n]); return o; }
+function groupsQ(id, [g, n], { pre, skill, r }) {
+  const ans = g * n, adds = Array(g).fill(n).join(' + ');
+  const how = `${g} groups of ${n}: ${adds} = ${ans}. So ${g} ${TIMES} ${n} = ${ans}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a: g, b: n }, q: `There are ${g} groups. Each group has ${n}. How many in all?`,
+    ...(pre ? { kind: 'pre' } : { hint: `Add ${n} one time for each group: ${g} times.`, pic: { groups: { g, n } }, explain: { groups: { g, n, show: ans } } }),
+    explanation: how
+  }, ans, [
+    { v: g + n, keep: true, tag: 'Added the two numbers', say: `You added ${g} + ${n}. That is ${g} and ${n}, not ${g} groups of ${n}. ${how}` },
+    { v: ans - n, tag: 'Counted one group too few', say: `You counted one group too few. There are ${g} groups. ${how}` },
+    { v: ans + n, tag: 'Counted one group too many', say: `You counted one group too many. There are ${g} groups. ${how}` },
+    { v: ans + 1, tag: 'Groups count off by one', say: `Count again. ${how}` },
+    { v: ans - 1, tag: 'Groups count off by one', say: `Count again. ${how}` }
+  ], r);
+}
+
+/* MU2 ARRAYS: rows × cols (2–6 × 2–6) */
+function arrayPool() { const o = []; for (let a = 2; a <= 6; a++) for (let b = 2; b <= 6; b++) o.push([a, b]); return o; }
+function arrayQ(id, [rows, cols], { pre, skill, r }) {
+  const ans = rows * cols;
+  const how = `${rows} rows of ${cols}: ${skip(cols, rows)}. So ${rows} ${TIMES} ${cols} = ${ans}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a: rows, b: cols }, q: `An array has ${rows} rows. Each row has ${cols} dots. How many dots in all?`,
+    ...(pre ? { kind: 'pre' } : { hint: `Count by ${cols}s, one count for each row.`, pic: { array: { rows, cols } }, explain: { array: { rows, cols, show: ans } } }),
+    explanation: how
+  }, ans, [
+    { v: rows + cols, keep: true, tag: 'Added rows and columns', say: `You added ${rows} + ${cols}. Count the dots: ${rows} rows of ${cols}. ${how}` },
+    { v: ans - cols, tag: 'Missed a row', say: `You left out one row. There are ${rows} rows. ${how}` },
+    { v: ans + cols, tag: 'Counted an extra row', say: `You counted one row too many. There are ${rows} rows. ${how}` },
+    { v: ans - rows, tag: 'Missed a column', say: `You left out one dot in every row. Each row has ${cols}. ${how}` },
+    { v: ans + rows, tag: 'Counted an extra column', say: `You counted one dot too many in every row. Each row has ${cols}. ${how}` }
+  ], r);
+}
+
+/* MU3 SKIP COUNT: n × k by counting by k (k = 2, 5, 10; n 2–10) */
+function skipPool() { const o = []; for (const k of [2, 5, 10]) for (let n = 2; n <= 10; n++) o.push([n, k]); return o; }
+function skipQ(id, [n, k], { pre, skill, r }) {
+  const ans = n * k, seq = skip(k, n);
+  const how = `Count by ${k}s, ${n} times: ${seq}. So ${n} ${TIMES} ${k} = ${ans}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a: n, b: k }, q: `What is ${n} ${TIMES} ${k}?`,
+    ...(pre ? { kind: 'pre' } : { hint: `Count by ${k}s. Hold up one finger each time. Stop at ${n} fingers.`, pic: { line: { lo: 0, hi: Math.max(20, ans + k), step: k } }, explain: { line: { lo: 0, hi: Math.max(20, ans + k), from: 0, jumps: n, dir: 1, step: k } } }),
+    explanation: how
+  }, ans, [
+    { v: ans - k, keep: true, tag: 'Skip count one too few', say: `You stopped one count too soon. Count by ${k}s, ${n} times: ${seq}.` },
+    { v: ans + k, tag: 'Skip count one too many', say: `You counted one time too many. Count by ${k}s, ${n} times: ${seq}.` },
+    { v: n + k, tag: 'Added the two numbers', say: `You added ${n} + ${k}. Times means groups: ${how}` },
+    { v: ans + 1, tag: 'Skip count off by a little', say: `Count again. ${how}` },
+    { v: ans - 1, tag: 'Skip count off by a little', say: `Count again. ${how}` }
+  ], r);
+}
+
+/* MU6 TIMES AS MANY: Ben has b; Ana has t times as many (t 2–5, b 2–9) */
+const NAMES = [['Ana', 'Ben', 'stickers'], ['Mia', 'Leo', 'shells'], ['Kim', 'Sam', 'cards'], ['Ava', 'Max', 'marbles'], ['Zoe', 'Eli', 'books']];
+function timesPool() { const o = []; for (let t = 2; t <= 5; t++) for (let b = 2; b <= 9; b++) o.push([t, b]); return o; }
+function timesQ(id, [t, b], { pre, skill, r }) {
+  const [p1, p2, thing] = NAMES[(t * 7 + b) % NAMES.length], ans = t * b;
+  const how = `${t} times as many as ${b} means ${t} groups of ${b}. ${t} ${TIMES} ${b} = ${ans}. ${p1} has ${ans} ${thing}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a: t, b }, q: `${p2} has ${b} ${thing}. ${p1} has ${t} times as many ${thing} as ${p2}. How many ${thing} does ${p1} have?`,
+    ...(pre ? { kind: 'pre' } : { hint: `"${t} times as many" means ${t} groups of ${b}.`, pic: { bars: { t, b } }, explain: { bars: { t, b, show: ans } } }),
+    explanation: how
+  }, ans, [
+    { v: t + b, keep: true, tag: 'Added instead of times as many', say: `You added ${t} + ${b}. "Times as many" means multiply. ${how}` },
+    { v: b, tag: 'Gave the smaller amount', say: `${b} is how many ${p2} has. ${p1} has ${t} times as many. ${how}` },
+    { v: ans - b, tag: 'One group too few', say: `You made one group too few. ${how}` },
+    { v: ans + b, tag: 'One group too many', say: `You made one group too many. ${how}` }
+  ], r);
+}
+
+/* MU4 / MU5 / MU7 FACTS: a × b */
+function factsPool(set) { const o = []; for (const k of set) for (let n = 1; n <= 10; n++) o.push([n, k]); return o; }
+function multQ(id, [a, b], { pre, skill, r }) {
+  const ans = a * b, small = Math.min(a, b), big = Math.max(a, b);
+  const how = `${a} ${TIMES} ${b} = ${ans}. Count by ${big}s, ${small} times: ${skip(big, small)}.`;
+  return question({
+    id, skill, fact: { op: TIMES, a, b }, q: `What is ${a} ${TIMES} ${b}?`, ...(pre ? { kind: 'pre' } : {}), explanation: how
+  }, ans, [
+    { v: ans - big, tag: 'One group too few', say: `Your answer is one group of ${big} too small. ${how}` },
+    { v: ans + big, tag: 'One group too many', say: `Your answer is one group of ${big} too big. ${how}` },
+    { v: a + b, tag: 'Added instead of multiplying', say: `You added ${a} + ${b}. The times sign means groups. ${how}` },
+    { v: ans - small, tag: 'Off by a group', say: `Your answer is ${small} too small. ${how}` },
+    { v: ans + small, tag: 'Off by a group', say: `Your answer is ${small} too big. ${how}` },
+    { v: ans + 1, tag: 'Off by one', say: `Your answer is 1 too big. ${how}` },
+    { v: ans - 1, tag: 'Off by one', say: `Your answer is 1 too small. ${how}` }
+  ], r);
+}
+
+
+const MU_LESSONS = ({ watch, step, B }) => [
+  {
+    id: 'MU1', title: 'Equal Groups', skill: 'Equal groups',
+    pre: { pool: B.groupsPool, build: B.groupsQ },
+    teach: sk => [
+      watch('W1', sk, 'Equal groups', [
+        'Look at the picture. There are 3 groups.',
+        'Each group has 4 dots. Every group has the same number of dots. That makes them equal groups.',
+        'Add 4 one time for each group: 4 + 4 + 4 = 12.',
+        `3 groups of 4 is 12. We write it 3 ${TIMES} 4 = 12. The ${TIMES} sign means "groups of."`
+      ], { groups: { g: 3, n: 4, show: 12 } }),
+      step('S1', sk, 'How many groups are there?', 2, [
+        [5, '5 is how many dots are in each group. Count the circles: there are 2 groups.'],
+        [7, 'Count only the circles. There are 2 groups.']
+      ], { pic: { groups: { g: 2, n: 5 } } }),
+      step('S2', sk, 'How many dots are in each group?', 5, [
+        [2, '2 is how many groups there are. Count the dots in one circle: 5.'],
+        [10, '10 is all the dots. Count the dots in one circle: 5.']
+      ], { pic: { groups: { g: 2, n: 5 } } }),
+      step('S3', sk, 'Which adding shows 2 groups of 5?', '5 + 5', [
+        ['2 + 5', '2 + 5 adds the two numbers. 2 groups of 5 is 5, and 5 more: 5 + 5.'],
+        ['5 + 5 + 5', '5 + 5 + 5 is 3 groups. There are 2 groups: 5 + 5.']
+      ], { pic: { groups: { g: 2, n: 5 } } }),
+      step('S4', sk, `So what is 2 ${TIMES} 5?`, 10, [
+        [7, `7 is 2 + 5. 2 groups of 5 is 5 + 5 = 10. So 2 ${TIMES} 5 = 10.`],
+        [15, `15 is 3 groups of 5. There are 2 groups: 5 + 5 = 10.`]
+      ], { explain: { groups: { g: 2, n: 5, show: 10 } } }),
+      watch('W2', sk, `${TIMES} means groups of, not plus`, [
+        `4 ${TIMES} 3 means 4 groups of 3.`,
+        '3 + 3 + 3 + 3 = 12.',
+        `So 4 ${TIMES} 3 = 12. It is not 4 + 3. 4 + 3 = 7, and that is a different answer.`
+      ], { groups: { g: 4, n: 3, show: 12 } })
+    ],
+    parts: [{ pool: B.groupsPool, build: B.groupsQ, n: 10 }]
+  },
+  {
+    id: 'MU2', title: 'Arrays', skill: 'Arrays',
+    pre: { pool: B.arrayPool, build: B.arrayQ },
+    teach: sk => [
+      watch('W1', sk, 'Arrays', [
+        'An array is dots in rows. Every row has the same number of dots.',
+        'This array has 3 rows. Each row has 5 dots.',
+        'Count by 5s, one count for each row: 5, 10, 15.',
+        `3 rows of 5 is 15. 3 ${TIMES} 5 = 15.`
+      ], { array: { rows: 3, cols: 5, show: 15 } }),
+      step('S1', sk, 'How many rows does this array have? Rows go across.', 4, [
+        [2, '2 is how many dots are in one row. Rows go across. Count the rows: 4.'],
+        [8, '8 is all the dots. Count the rows: 4.']
+      ], { pic: { array: { rows: 4, cols: 2 } } }),
+      step('S2', sk, 'How many dots are in each row?', 2, [
+        [4, '4 is how many rows there are. Count the dots in one row: 2.'],
+        [8, '8 is all the dots. Count the dots in one row: 2.']
+      ], { pic: { array: { rows: 4, cols: 2 } } }),
+      step('S3', sk, 'Count by 2s, one count for each row. Which numbers do you say?', '2, 4, 6, 8', [
+        ['2, 4, 6', 'There are 4 rows, so say 4 numbers: 2, 4, 6, 8.'],
+        ['4, 8, 12, 16', 'That is counting by 4s. Each row has 2, so count by 2s: 2, 4, 6, 8.']
+      ], { pic: { array: { rows: 4, cols: 2 } } }),
+      step('S4', sk, `So what is 4 ${TIMES} 2?`, 8, [
+        [6, `6 is 4 + 2. Count by 2s four times: 2, 4, 6, 8. So 4 ${TIMES} 2 = 8.`],
+        [10, `10 is 5 rows of 2. There are 4 rows: 2, 4, 6, 8.`]
+      ], { explain: { array: { rows: 4, cols: 2, show: 8 } } })
+    ],
+    parts: [{ pool: B.arrayPool, build: B.arrayQ, n: 10 }]
+  },
+  {
+    id: 'MU3', title: 'Skip Count by 2s, 5s and 10s', skill: 'Skip count to multiply',
+    pre: { pool: B.skipPool, build: B.skipQ },
+    teach: sk => [
+      watch('W1', sk, 'Skip count to multiply', [
+        'Counting by 5s is a fast way to multiply by 5.',
+        `6 ${TIMES} 5 means count by 5s, 6 times. Hold up one finger each time.`,
+        '5, 10, 15, 20, 25, 30. That is 6 fingers.',
+        `So 6 ${TIMES} 5 = 30.`
+      ], { line: { lo: 0, hi: 40, from: 0, jumps: 6, dir: 1, step: 5 } }),
+      step('S1', sk, 'Count by 2s: 2, 4, 6. Which number comes next?', 8, [
+        [7, 'Counting by 2s skips one number each time. After 6 comes 8.'],
+        [10, 'Count by 2s: 2, 4, 6, then 8.']
+      ], { pic: { line: { lo: 0, hi: 20, step: 2 } } }),
+      step('S2', sk, 'Count by 10s, 4 times. Which number do you stop on?', 40, [
+        [14, '14 is 10 + 4. Count by 10s, 4 times: 10, 20, 30, 40.'],
+        [30, '30 is only 3 counts. Count 4 times: 10, 20, 30, 40.']
+      ], { pic: { line: { lo: 0, hi: 50, step: 10 } }, explain: { line: { lo: 0, hi: 50, from: 0, jumps: 4, dir: 1, step: 10 } } }),
+      step('S3', sk, `So what is 4 ${TIMES} 10?`, 40, [
+        [14, `14 is 4 + 10. Count by 10s, 4 times: 10, 20, 30, 40. So 4 ${TIMES} 10 = 40.`],
+        [50, '50 is 5 counts of 10. Count 4 times: 10, 20, 30, 40.']
+      ], { explain: { line: { lo: 0, hi: 50, from: 0, jumps: 4, dir: 1, step: 10 } } })
+    ],
+    parts: [{ pool: B.skipPool, build: B.skipQ, n: 10 }]
+  },
+  {
+    id: 'MU4', title: 'Facts: 2s, 5s and 10s', skill: 'Facts: 2s, 5s and 10s',
+    pre: { pool: () => B.factsPool([2, 5, 10]), build: B.multQ },
+    teach: sk => [
+      watch('W1', sk, 'Three fast ways', [
+        `Times 2 is a double. 2 ${TIMES} 7 is 7 + 7 = 14.`,
+        `Times 10: count by 10s. 10 ${TIMES} 6 is 10, 20, 30, 40, 50, 60. That is 60.`,
+        `Times 5: count by 5s. 5 ${TIMES} 4 is 5, 10, 15, 20. That is 20.`
+      ]),
+      step('S1', sk, `2 ${TIMES} 8 is the same as which double?`, '8 + 8', [
+        ['2 + 8', `2 + 8 adds the two numbers. 2 ${TIMES} 8 is 2 groups of 8: 8 + 8.`],
+        ['8 + 8 + 8', `That is 3 groups of 8. 2 ${TIMES} 8 is 8 + 8.`]
+      ]),
+      step('S2', sk, `So what is 2 ${TIMES} 8?`, 16, [
+        [10, `10 is 2 + 8. 2 ${TIMES} 8 is 8 + 8 = 16.`],
+        [18, `8 + 8 = 16. Count on from 8: 9, 10, 11, 12, 13, 14, 15, 16.`]
+      ]),
+      step('S3', sk, `Count by 5s to find 5 ${TIMES} 3. Which number do you stop on?`, 15, [
+        [8, `8 is 5 + 3. Count by 5s, 3 times: 5, 10, 15.`],
+        [20, `20 is 4 counts. Count 3 times: 5, 10, 15.`]
+      ], { explain: { line: { lo: 0, hi: 30, from: 0, jumps: 3, dir: 1, step: 5 } } })
+    ],
+    parts: [{ pool: () => B.factsPool([2, 5, 10]), build: B.multQ, n: 10 }]
+  },
+  {
+    id: 'MU5', title: '3s and 4s', skill: 'Facts: 3s and 4s',
+    pre: { pool: () => B.factsPool([3, 4]), build: B.multQ },
+    teach: sk => [
+      watch('W1', sk, 'Times 4: double, then double again', [
+        `4 ${TIMES} 6. First double 6: 6 + 6 = 12. That is 2 groups of 6.`,
+        'Then double again: 12 + 12 = 24. That is 4 groups of 6.',
+        `So 4 ${TIMES} 6 = 24.`
+      ], { groups: { g: 4, n: 6, show: 24 } }),
+      step('S1', sk, `4 ${TIMES} 7. First double 7. What is 7 + 7?`, 14, [
+        [11, '11 is 7 + 4. Double 7 means 7 + 7 = 14.'],
+        [13, 'Count on from 7: 8, 9, 10, 11, 12, 13, 14. 7 + 7 = 14.']
+      ]),
+      step('S2', sk, `Now double 14. What is 14 + 14? That is 4 ${TIMES} 7.`, 28, [
+        [21, '21 is 3 groups of 7. Double 14: 14 + 14 = 28.'],
+        [18, '18 is 14 + 4. Double 14: 14 + 14 = 28.']
+      ], { explain: { groups: { g: 4, n: 7, show: 28 } } }),
+      watch('W2', sk, 'Times 3: times 2, and one more group', [
+        `3 ${TIMES} 6. First 2 ${TIMES} 6: 6 + 6 = 12.`,
+        'Add one more group of 6: 12 + 6 = 18.',
+        `So 3 ${TIMES} 6 = 18.`
+      ], { groups: { g: 3, n: 6, show: 18 } }),
+      step('S3', sk, `3 ${TIMES} 5. 2 ${TIMES} 5 = 10. Add one more 5. What is 10 + 5?`, 15, [
+        [8, `8 is 3 + 5. 3 ${TIMES} 5 is 2 groups of 5 and one more: 10 + 5 = 15.`],
+        [20, `20 is 4 groups of 5. Add only one more 5: 10 + 5 = 15.`]
+      ], { explain: { groups: { g: 3, n: 5, show: 15 } } })
+    ],
+    parts: [{ pool: () => B.factsPool([3, 4]), build: B.multQ, n: 10 }]
+  },
+  {
+    id: 'MU6', title: 'Times as Many', skill: 'Times as many',
+    pre: { pool: B.timesPool, build: B.timesQ },
+    teach: sk => [
+      watch('W1', sk, 'Times as many', [
+        'Ben has 4 stickers. Ana has 3 times as many stickers as Ben.',
+        `3 times as many means 3 groups of Ben's 4.`,
+        `4 + 4 + 4 = 12. So 3 ${TIMES} 4 = 12.`,
+        'Ana has 12 stickers. Times as many means multiply, not add.'
+      ], { bars: { t: 3, b: 4, show: 12 } }),
+      step('S1', sk, 'Leo has 5 shells. Mia has 2 times as many shells as Leo. How many groups of 5 does Mia have?', 2, [
+        [5, '5 is how many shells Leo has. 2 times as many means 2 groups of 5.'],
+        [7, '7 is 2 + 5. 2 times as many means 2 groups of 5.']
+      ], { pic: { bars: { t: 2, b: 5 } } }),
+      step('S2', sk, 'So how many shells does Mia have?', 10, [
+        [7, `7 is 2 + 5. Times as many means multiply: 2 ${TIMES} 5 = 10.`],
+        [5, `5 is Leo's shells. Mia has 2 groups of 5: 10.`]
+      ], { explain: { bars: { t: 2, b: 5, show: 10 } } })
+    ],
+    parts: [{ pool: B.timesPool, build: B.timesQ, n: 10 }]
+  },
+  {
+    id: 'MU7', title: 'Multiplication Facts Check', skill: 'Multiplication facts (check)', check: true,
+    teach: sk => [
+      watch('W1', sk, 'The facts check', [
+        'This is the multiplication facts check. It has 20 facts: 2s, 3s, 4s, 5s and 10s.',
+        'Use your fast ways: doubles for 2s, double and double again for 4s, count by 5s and 10s, and times 2 plus one more group for 3s.',
+        'There are no hints and no pictures this time.',
+        'Get 18 of 20 right to finish Multiplying.'
+      ])
+    ],
+    parts: [{ pool: () => B.factsPool([2, 3, 4, 5, 10]).filter(([n]) => n >= 2), build: B.multQ, n: 20 }]
+  }
+];
+LESSONS.push(...MU_LESSONS({ watch, step, B: { groupsPool, groupsQ, arrayPool, arrayQ, skipPool, skipQ, timesPool, timesQ, factsPool, multQ } }));
+
 /* ═══ A STUDENT'S OWN FACTS ═══
    A missed fact from an earlier try: { op: '+' | '−', a, b }. fits(lessonId, f) says whether the
    lesson teaches that kind of fact; factItem builds it with the lesson's own builder (same slips,
@@ -579,6 +852,17 @@ function fits(lessonId, f) {
     if (lessonId === 'AS2') return hi >= 7 && hi <= 9 && s >= 11 && s <= 18;
     if (lessonId === 'AS3') return (hi === 10 && lo >= 1 && lo <= 9) || (hi >= 11 && hi <= 19 && lo >= 1 && (hi % 10) + lo <= 9);
     if (lessonId === 'AS6') return true;
+    return false;
+  }
+  if (op === '×') {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    if (lo < 1 || hi > 10) return false;
+    if (lessonId === 'MU1') return a >= 2 && a <= 6 && b >= 2 && b <= 6;
+    if (lessonId === 'MU2') return a >= 2 && a <= 6 && b >= 2 && b <= 6;
+    if (lessonId === 'MU3') return [2, 5, 10].includes(b) && a >= 2 || [2, 5, 10].includes(a) && b >= 2;
+    if (lessonId === 'MU4') return [2, 5, 10].includes(a) || [2, 5, 10].includes(b);
+    if (lessonId === 'MU5') return [3, 4].includes(a) || [3, 4].includes(b);
+    if (lessonId === 'MU7') return lo >= 2 && ([2, 3, 4, 5, 10].includes(a) || [2, 3, 4, 5, 10].includes(b));
     return false;
   }
   if (op === '−') {
@@ -601,11 +885,16 @@ function factItem(lessonId, f, id, r, skill) {
     return teenQ(id, b === 10 ? ['minus10', a, b] : ['minus', a, b], o);
   }
   if (lessonId === 'AS4') return countBackQ(id, [a, b], o);
+  if (lessonId === 'MU1') return groupsQ(id, [a, b], o);
+  if (lessonId === 'MU2') return arrayQ(id, [a, b], o);
+  if (lessonId === 'MU3') return [2, 5, 10].includes(b) ? skipQ(id, [a, b], o) : skipQ(id, [b, a], o);
+  if (op === '×') return multQ(id, [a, b], o);
   if (lessonId === 'AS5') return a - b <= 6 && b >= 2 ? countUpQ(id, [a, b], o) : familyQ(id, [a - b, b], o);
   return mixedQ(id, [op === '+' ? 'add' : 'sub', a, b], o);
 }
 
-const api = { MINUS, rng, seedOf, shuffled, range, question, LESSONS, fits, factItem,
+const api = { MINUS, TIMES, rng, seedOf, shuffled, range, question, LESSONS, fits, factItem,
+  groupsQ, arrayQ, skipQ, timesQ, multQ, groupsPool, arrayPool, skipPool, timesPool, factsPool,
   countOnQ, countBackQ, partnerQ, make10Q, teenQ, countUpQ, familyQ, mixedQ,
   countOnPool, countBackPool, make10Pool, teenPool, countUpPool, familyPool, mixedPool };
 root.LabLessons = api;

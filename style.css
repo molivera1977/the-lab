@@ -883,3 +883,16 @@ button.answer-btn.incorrect { background: #f8d7da; border-color: #dc3545; color:
 .strand-rd .step-label { color: #1f618d; }
 .start-btn.reading-btn { background: #2e86c1; box-shadow: 0 5px 0 #1f618d; }
 .start-btn.reading-btn:hover { box-shadow: 0 8px 0 #1f618d; }
+
+/* Strand 2 pictures: equal groups, arrays, times-as-many bars */
+.lv-groups-row { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+.lv-group { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: center; width: 96px; min-height: 96px; padding: 10px; border: 3px solid #34495e; border-radius: 50%; background: #fff; }
+.lv-group .lv-d { width: 22px; height: 22px; }
+.lv-array-box { display: inline-flex; flex-direction: column; gap: 8px; padding: 12px; border: 3px solid #34495e; border-radius: 10px; background: #fff; }
+.lv-arow { display: flex; gap: 8px; }
+.lv-arow .lv-d { width: 24px; height: 24px; }
+.lv-bars { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; max-width: 640px; margin: 10px auto; }
+.lv-bars-row { display: flex; align-items: center; gap: 0; }
+.lv-bar-name { width: 90px; font-weight: bold; font-size: 1rem; color: #2c3e50; }
+.lv-bar-cell { width: 70px; height: 40px; border: 2px solid #1f618d; background: #d6eaf8; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; }
+.lv-bar-total { margin-left: 12px; font-weight: bold; font-size: 1.2rem; color: #1e8449; }

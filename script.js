@@ -57,7 +57,7 @@ let SESSION_ID = (() => {
 /* ── THE STRANDS AND LESSONS ─────────────────────────── */
 const STRANDS = [
   { id: 'as', icon: '➕', name: 'Adding and Subtracting to 20', lessons: ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6'] },
-  { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: [], after: 'as', soon: true },
+  { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: ['MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'], after: 'as' },
   { id: 'pv', icon: '🔢', name: 'Place Value: 10s and 100s', lessons: [], soon: true },
   { id: 'ro', icon: '🎯', name: 'Rounding', lessons: [], soon: true }
 ];
@@ -67,7 +67,14 @@ const LESSONS = {
   AS3: { title: 'Teen Numbers: 10 and Some More',   icon: '🧱', facts: true },
   AS4: { title: 'Count Back to Subtract',           icon: '⬅️', facts: true },
   AS5: { title: 'Subtract by Thinking Addition',    icon: '🔁', facts: true },
-  AS6: { title: 'Facts Check to 20',                icon: '🏁', facts: true, check: true, hints: false, pre: false }
+  AS6: { title: 'Facts Check to 20',                icon: '🏁', facts: true, check: true, hints: false, pre: false },
+  MU1: { title: 'Equal Groups',                     icon: '🫘', facts: true },
+  MU2: { title: 'Arrays',                           icon: '🔵', facts: true },
+  MU3: { title: 'Skip Count by 2s, 5s and 10s',     icon: '🐸', facts: true },
+  MU4: { title: 'Facts: 2s, 5s and 10s',            icon: '✋', facts: true },
+  MU5: { title: '3s and 4s',                        icon: '🧩', facts: true },
+  MU6: { title: 'Times as Many',                    icon: '📏', facts: true },
+  MU7: { title: 'Multiplication Facts Check',       icon: '🏁', facts: true, check: true, hints: false, pre: false }
 };
 // WHO IS ON A PLAN is not written in this file (the site's code is public). A student is on a plan when the
 // sheet's lab-seed tab has a row for them, form "plan=as,mu,pv,ro" (loadHistory fills PLANS at sign-in).
@@ -194,7 +201,7 @@ function submitScoreFinal() {
    sessionId every time, done:false so the sheet overwrites it) together with the lessons passed. At sign-in the
    site reads lab-seed (their misses on the fact sites, written once by Mr. O's side) and lab-progress, and joins
    them with what the device already has. Nothing here is in the site's files. A guest's work is never sent. */
-const FACT_RE = /^(\d+) ([+−-]) (\d+) \(([^)]*)\)$/;
+const FACT_RE = /^(\d+) ([+−×-]) (\d+) \(([^)]*)\)$/;
 const factKey = f => `${f.a} ${f.op} ${f.b}`;
 function readWeak(name) {
   try { return JSON.parse(localStorage.getItem(WEAK_KEY + ':' + name) || '{}') || {}; } catch (e) { return {}; }
@@ -208,7 +215,7 @@ function parseFactList(text, src) {
   String(text || '').split(' | ').forEach(entry => {
     const m = entry.trim().match(FACT_RE);
     if (!m) return;
-    const f = { op: m[2] === '+' ? '+' : '−', a: +m[1], b: +m[3] };
+    const f = { op: m[2] === '+' ? '+' : m[2] === '×' ? '×' : '−', a: +m[1], b: +m[3] };
     const k = factKey(f);
     const picks = m[4].split(',').map(x => x.trim()).filter(x => x && x !== '?');
     const prev = out[k] || { ...f, picks: [], right: 0, src };
@@ -1294,6 +1301,16 @@ const app = {
     return order.slice(0, max).map((f, i) => {
       const q = LabLessons.factItem(form, f, `${form}-${pre ? 'K' : 'M'}${i + 1}`, r, skill);
       const item = { ...q, fact: { op: f.op, a: f.a, b: f.b }, mine: true, before: [...f.picks] };
+      // their earlier wrong answer is always a choice (a repeat can only be seen if it can be picked):
+      // it takes the place of the last wrong choice, with the fact worked out in its note
+      const earlier = [...f.picks].reverse().find(p => /^\d+$/.test(p) && p !== item.answer);
+      if (earlier && !item.choices.includes(earlier)) {
+        const out = item.choices.filter(c => c !== item.answer).pop();
+        item.choices = item.choices.map(c => (c === out ? earlier : c));
+        const slips = { ...item.slips }; delete slips[out];
+        slips[earlier] = { tag: 'Same answer as before', say: item.explanation };
+        item.slips = slips;
+      }
       if (pre) { item.kind = 'pre'; delete item.hint; delete item.pic; delete item.explain; }
       return item;
     });

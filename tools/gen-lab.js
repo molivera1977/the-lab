@@ -31,7 +31,7 @@ const { MINUS, rng, seedOf, shuffled, range, LESSONS } = L;
 
 /* ═══ BUILD ═══ */
 // a + b and b + a are the same fact inside one version
-const sameFact = t => {
+const sameFactAny = t => {
   if (!Array.isArray(t)) return JSON.stringify(t);
   if (t.length === 2) return JSON.stringify([...t].sort((x, y) => x - y));
   // [kind, a, b]: adding kinds are the same fact either way round (8 + 6 = 6 + 8); taking away is not
@@ -39,8 +39,10 @@ const sameFact = t => {
   return /^(add|addT|ten|tenB|plus)$/.test(kind) ? `+${Math.min(a, b)},${Math.max(a, b)}` : `${kind === 'sub' || kind === 'minus' || kind === 'minus10' ? '-' : kind}${a},${b}`;
 };
 
+const ORDERED = new Set(['MU1', 'MU2', 'MU6']);   // groups, arrays, times as many: a × b and b × a are different pictures
 function buildVersion(L, v, lessonUsed) {
   const r = rng(seedOf(`${L.id}-v${v}`));
+  const sameFact = t => (ORDERED.has(L.id) ? JSON.stringify(t) : sameFactAny(t));
   const items = [];
   const taken = new Set();
   const usedFact = new Set();

@@ -20,9 +20,9 @@
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 global.window = {};
-['as1', 'as2', 'as3', 'as4', 'as5', 'as6', 'words', 'skills'].forEach(f => require(path.join(ROOT, 'data', f + '.js')));
+['as1', 'as2', 'as3', 'as4', 'as5', 'as6', 'mu1', 'mu2', 'mu3', 'mu4', 'mu5', 'mu6', 'mu7', 'words', 'skills'].forEach(f => require(path.join(ROOT, 'data', f + '.js')));
 const LL = require(path.join(ROOT, 'lessons.js'));   // only for part 10 (to BUILD the student's facts); never to check
-const IDS = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6'];
+const IDS = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6', 'MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'];
 const M = '−';
 const nums = s => (String(s).match(/\d+/g) || []).map(Number);
 
@@ -34,6 +34,10 @@ function readQ(q) {
     return { kind: 'fact', op, a, b, ans: op === '+' ? a + b : a - b };
   }
   if ((m = q.q.match(/^What number and (\d+) make 10\?$/))) return { kind: 'partner', p: +m[1], ans: 10 - +m[1] };
+  if ((m = q.q.match(/^What is (\d+) × (\d+)\?$/))) return { kind: 'fact', op: '×', a: +m[1], b: +m[2], ans: +m[1] * +m[2] };
+  if ((m = q.q.match(/^There are (\d+) groups\. Each group has (\d+)\. How many in all\?$/))) return { kind: 'groups', op: '×', a: +m[1], b: +m[2], ans: +m[1] * +m[2] };
+  if ((m = q.q.match(/^An array has (\d+) rows\. Each row has (\d+) dots\. How many dots in all\?$/))) return { kind: 'array', op: '×', a: +m[1], b: +m[2], ans: +m[1] * +m[2] };
+  if ((m = q.q.match(/^(\w+) has (\d+) (\w+)\. (\w+) has (\d+) times as many \3 as \1\. How many \3 does \4 have\?$/))) return { kind: 'times', op: '×', a: +m[5], b: +m[2], ans: +m[5] * +m[2] };
   if ((m = q.q.match(/^(\d+) \+ (\d+) = (\d+)\. So what is (\d+) − (\d+)\?$/))) {
     const a = +m[1], b = +m[2], c = +m[3];
     return { kind: 'family', a, b, c, top: +m[4], take: +m[5], ans: +m[4] - +m[5], stated: a + b === c };
@@ -44,11 +48,14 @@ function readQ(q) {
 /* ── every "x + y = z" / "x − y = z" in a text must be true ── */
 function badEquations(text) {
   const bad = [];
-  const re = /(\d+) ([+−]) (\d+) = (\d+)/g;
+  const re = /(?:^|[^\d+−×] ?)(\d+(?: [+−×] \d+)+) = (\d+)/g;
   let m;
   while ((m = re.exec(text))) {
-    const v = m[2] === '+' ? +m[1] + +m[3] : +m[1] - +m[3];
-    if (v !== +m[4]) bad.push(m[0]);
+    const toks = m[1].split(' ');
+    let v;
+    if (toks.includes('×')) v = toks.filter((_, i) => i % 2 === 0).reduce((p, x) => p * +x, 1);
+    else { v = +toks[0]; for (let i = 1; i < toks.length; i += 2) v = toks[i] === '+' ? v + +toks[i + 1] : v - +toks[i + 1]; }
+    if (v !== +m[2]) bad.push(`${m[1]} = ${m[2]}`);
   }
   return bad;
 }
@@ -67,6 +74,11 @@ function badCounts(text) {
     const start = +m[1], end = +m[2], list = nums(m[3]), n = +m[4];
     const want = Array.from({ length: end - start }, (_, i) => start + i + 1);
     if (JSON.stringify(list) !== JSON.stringify(want) || n !== want.length) bad.push(m[0]);
+  }
+  const sk = /Count by (\d+)s, (\d+) times: ([\d, ]+)\./g;
+  while ((m = sk.exec(text))) {
+    const k = +m[1], n = +m[2], list = nums(m[3]);
+    if (JSON.stringify(list) !== JSON.stringify(Array.from({ length: n }, (_, i) => (i + 1) * k))) bad.push(m[0]);
   }
   return bad;
 }
@@ -111,6 +123,22 @@ function slipFits(tag, pick, R, lesson, q) {
     case 'Difference off by a little':
     case 'Off by a little':
       return d !== 0 && Math.abs(d) <= 4;
+    case 'Added the two numbers': case 'Added rows and columns': case 'Added instead of multiplying': case 'Added instead of times as many':
+      return R.op === '×' && pick === R.a + R.b;
+    case 'Counted one group too few': return R.kind === 'groups' && pick === ans - R.b;
+    case 'Counted one group too many': return R.kind === 'groups' && pick === ans + R.b;
+    case 'Missed a row': return R.kind === 'array' && pick === ans - R.b;
+    case 'Counted an extra row': return R.kind === 'array' && pick === ans + R.b;
+    case 'Missed a column': return R.kind === 'array' && pick === ans - R.a;
+    case 'Counted an extra column': return R.kind === 'array' && pick === ans + R.a;
+    case 'Skip count one too few': return R.op === '×' && (pick === ans - R.b || pick === ans - R.a);
+    case 'Skip count one too many': return R.op === '×' && (pick === ans + R.b || pick === ans + R.a);
+    case 'Gave the smaller amount': return R.kind === 'times' && pick === R.b;
+    case 'One group too few': return R.op === '×' && (pick === ans - Math.max(R.a, R.b) || pick === ans - R.b);
+    case 'One group too many': return R.op === '×' && (pick === ans + Math.max(R.a, R.b) || pick === ans + R.b);
+    case 'Off by a group': return R.op === '×' && Math.abs(d) === Math.min(R.a, R.b);
+    case 'Groups count off by one': case 'Skip count off by a little': case 'Off by one':
+      return d !== 0 && Math.abs(d) <= 4;
     default: return false;
   }
 }
@@ -119,7 +147,7 @@ function slipFits(tag, pick, R, lesson, q) {
 function inLimits(lesson, R, q) {
   if (q.mine) return true;                 // a student's own fact is whatever they missed (checked by part 10)
   const within = n => n >= 0 && n <= 20;
-  if (!within(R.ans)) return false;
+  if (R.op !== '×' && !within(R.ans)) return false;
   switch (lesson) {
     case 'AS1': return R.kind === 'fact' && R.op === '+' && Math.min(R.a, R.b) >= 1 && Math.min(R.a, R.b) <= 3 && R.a + R.b <= 20;
     case 'AS2':
@@ -134,6 +162,13 @@ function inLimits(lesson, R, q) {
     case 'AS5':
       if (R.kind === 'family') return R.stated && R.top === R.c && (R.take === R.b) && R.c >= 11;
       return R.kind === 'fact' && R.op === M && R.ans >= 2 && R.ans <= 6 && R.b >= 6;
+    case 'MU1': return R.kind === 'groups' && R.a >= 2 && R.a <= 6 && R.b >= 2 && R.b <= 6;
+    case 'MU2': return R.kind === 'array' && R.a >= 2 && R.a <= 6 && R.b >= 2 && R.b <= 6;
+    case 'MU3': return R.kind === 'fact' && R.op === '×' && [2, 5, 10].includes(R.b) && R.a >= 2 && R.a <= 10;
+    case 'MU4': return R.kind === 'fact' && R.op === '×' && [2, 5, 10].includes(R.b) && R.a >= 1 && R.a <= 10;
+    case 'MU5': return R.kind === 'fact' && R.op === '×' && [3, 4].includes(R.b) && R.a >= 1 && R.a <= 10;
+    case 'MU6': return R.kind === 'times' && R.a >= 2 && R.a <= 5 && R.b >= 2 && R.b <= 9;
+    case 'MU7': return R.kind === 'fact' && R.op === '×' && [2, 3, 4, 5, 10].includes(R.b) && R.a >= 2 && R.a <= 10;
     case 'AS6':
       if (R.kind !== 'fact') return false;
       return R.op === '+' ? R.ans <= 20 : R.a >= 11 && R.a <= 18 && R.b <= 9;
@@ -149,6 +184,7 @@ function picLeaks(q) {
   if (p.frames && (p.frames.fill || p.frames.make10)) return true;
   if (p.teen && p.teen.show != null) return true;
   if (p.bond && !p.bond.ask) return true;
+  if ((p.groups && p.groups.show != null) || (p.array && p.array.show != null) || (p.bars && p.bars.show != null)) return true;
   return false;
 }
 
@@ -177,7 +213,7 @@ function checkItem(lesson, q) {
   if (q.kind === 'pre' && (q.pic || q.hint)) out.push(`${q.id}: Show what you know has a picture or hint`);
   if (lesson === 'AS6' && (q.pic || q.hint)) out.push(`${q.id}: the facts check has a picture or hint`);
   if (q.fact) {
-    const fv = q.fact.op === '+' ? q.fact.a + q.fact.b : q.fact.a - q.fact.b;
+    const fv = q.fact.op === '+' ? q.fact.a + q.fact.b : q.fact.op === '×' ? q.fact.a * q.fact.b : q.fact.a - q.fact.b;
     if (String(fv) !== q.answer) out.push(`${q.id}: the fact tag ${q.fact.a} ${q.fact.op} ${q.fact.b} does not give the answer`);
   } else if (R.kind !== 'partner') out.push(`${q.id}: no fact tag (a miss would not reach the student's list)`);
   // Count On / Count Back notes start at the right number
@@ -204,7 +240,7 @@ function checkTeach(q) {
   return out;
 }
 
-const factKey = q => { const R = readQ(q); return !R ? q.q : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
+const factKey = q => { const R = readQ(q); return !R ? q.q : R.op === '×' ? (R.kind === 'fact' ? `x${Math.min(R.a, R.b)}x${Math.max(R.a, R.b)}` : `${R.kind}${R.a}x${R.b}`) : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
 
 function checkLesson(id) {
   const out = [];
@@ -233,7 +269,9 @@ function checkLesson(id) {
     if (vi > 0) {
       const scored = v.filter(q => !q.kind);
       const fresh = scored.filter(q => !v1facts.has(factKey(q))).length;
-      const need = id === 'AS2' ? 0.5 : 0.7;   // Make 10 has only 9 ten partners to go round
+      // Make 10 has only 9 ten partners to go round. The multiplication facts lessons draw from small sets (the 3s
+      // and 4s are 19 facts), so a retry repeats some facts by nature; it still gets a different set and order.
+      const need = id === 'AS2' ? 0.5 : /^MU[3457]$/.test(id) ? 0.3 : /^MU/.test(id) ? 0.5 : 0.7;
       if (fresh < scored.length * need) out.push(`${where}: only ${fresh} of ${scored.length} questions are new facts`);
     }
   });
@@ -260,7 +298,7 @@ function checkOwnFacts() {
   const out = [];
   let built = 0;
   const r = LL.rng(99);
-  for (let a = 0; a <= 20; a++) for (let b = 0; b <= 20; b++) for (const op of ['+', M]) {
+  for (let a = 0; a <= 20; a++) for (let b = 0; b <= 20; b++) for (const op of ['+', M, '×']) {
     const f = { op, a, b };
     IDS.forEach(id => {
       if (!LL.fits(id, f)) return;
@@ -271,7 +309,7 @@ function checkOwnFacts() {
       const errs = checkItem(id, item);
       // the question may be asked as the family form; its answer must still be the fact's
       const R = readQ(item);
-      const fv = op === '+' ? a + b : a - b;
+      const fv = op === '+' ? a + b : op === '×' ? a * b : a - b;
       if (R && R.ans !== fv) errs.push(`asks ${item.q}, but the fact is ${a} ${op} ${b} = ${fv}`);
       errs.forEach(e => out.push(`own fact ${a} ${op} ${b} in ${e}`));
     });
@@ -303,7 +341,13 @@ function plants() {
     ['teen picture shows the answer', 'AS3', () => { const q = clone(base3); q.pic = { teen: { tens: 1, ones: 3, show: 13 } }; return q; }],
     ['fact family with a false adding fact', 'AS5', () => { const q = clone(fam); q.q = q.q.replace(/^(\d+) \+ (\d+) = (\d+)/, (m, a, b, c) => `${a} + ${b} = ${+c + 1}`); return q; }],
     ['fact tag does not match', 'AS1', () => { const q = clone(base); q.fact = { ...q.fact, a: q.fact.a + 1 }; return q; }],
-    ['hint on the facts check', 'AS6', () => { const q = clone(window.LAB_AS6.find(x => !x.kind)); q.hint = 'Count on.'; return q; }]
+    ['hint on the facts check', 'AS6', () => { const q = clone(window.LAB_AS6.find(x => !x.kind)); q.hint = 'Count on.'; return q; }],
+    ['wrong product', 'MU4', () => { const q = clone(window.LAB_MU4.find(x => !x.kind)); q.answer = q.choices.find(c => c !== q.answer); return q; }],
+    ['"added the numbers" on the wrong pick', 'MU1', () => { const q = clone(window.LAB_MU1.find(x => !x.kind)); const w = q.choices.find(c => c !== q.answer && q.slips[c].tag !== 'Added the two numbers'); q.slips[w].tag = 'Added the two numbers'; return q; }],
+    ['group picture shows the total', 'MU1', () => { const q = clone(window.LAB_MU1.find(x => !x.kind)); q.pic = { groups: { ...q.pic.groups, show: +q.answer } }; return q; }],
+    ['wrong skip-count list', 'MU3', () => { const q = clone(window.LAB_MU3.find(x => !x.kind)); q.explanation = q.explanation.replace(/: ([\d, ]+)\./, (m, l) => `: ${nums(l).map(x => x + 1).join(', ')}.`); return q; }],
+    ['false adding chain', 'MU1', () => { const q = clone(window.LAB_MU1.find(x => !x.kind)); q.explanation = q.explanation.replace(/ = (\d+)\. So/, (m, v) => ` = ${+v + 1}. So`); return q; }],
+    ['times-as-many outside the lesson', 'MU6', () => { const q = clone(window.LAB_MU6.find(x => !x.kind)); q.q = q.q.replace(/has (\d+) times as many/, 'has 9 times as many'); return q; }]
   ];
   let caught = 0;
   const missed = [];
@@ -338,7 +382,7 @@ const own = checkOwnFacts();
 problems.push(...own.out);
 const p = plants();
 problems.forEach(e => process.stdout.write('PROBLEM ' + e + '\n'));
-process.stdout.write(`\nItems checked: ${items} (6 lessons × 4 versions) · own-fact items built and checked: ${own.built}\n`);
+process.stdout.write(`\nItems checked: ${items} (${IDS.length} lessons × 4 versions) · own-fact items built and checked: ${own.built}\n`);
 process.stdout.write(`Problems: ${problems.length}\n`);
 process.stdout.write(`Planted mistakes caught: ${p.caught} of ${p.total}${p.missed.length ? ' — MISSED: ' + p.missed.join('; ') : ''}\n`);
 process.exit(problems.length || p.missed.length ? 1 : 0);
