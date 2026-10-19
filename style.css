@@ -878,3 +878,8 @@ button.answer-btn.incorrect { background: #f8d7da; border-color: #dc3545; color:
 .uc-box .dir-row { justify-content: center; }
 .uc-box .start-btn { margin: 14px auto 0; max-width: 360px; }
 .uc-box .signout-btn { margin-top: 14px; }
+
+/* 📖 Reading: the student's QPS stop */
+.strand-rd .step-label { color: #1f618d; }
+.start-btn.reading-btn { background: #2e86c1; box-shadow: 0 5px 0 #1f618d; }
+.start-btn.reading-btn:hover { box-shadow: 0 8px 0 #1f618d; }
