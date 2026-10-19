@@ -20,9 +20,9 @@
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 global.window = {};
-['as1', 'as2', 'as3', 'as4', 'as5', 'as6', 'mu1', 'mu2', 'mu3', 'mu4', 'mu5', 'mu6', 'mu7', 'pv1', 'pv2', 'pv3', 'pv4', 'pv5', 'pv6', 'pv7', 'ro1', 'ro2', 'ro3', 'ro4', 'ro5', 'ro6', 'words', 'skills'].forEach(f => require(path.join(ROOT, 'data', f + '.js')));
+['as1', 'as2', 'as3', 'as4', 'as5', 'as6', 'mu1', 'mu2', 'mu3', 'mu4', 'mu5', 'mu6', 'mu7', 'pv1', 'pv2', 'pv3', 'pv4', 'pv5', 'pv6', 'pv7', 'pv8', 'pv9', 'ro1', 'ro2', 'ro3', 'ro4', 'ro5', 'ro6', 'words', 'skills'].forEach(f => require(path.join(ROOT, 'data', f + '.js')));
 const LL = require(path.join(ROOT, 'lessons.js'));   // only for part 10 (to BUILD the student's facts); never to check
-const IDS = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6', 'MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7', 'PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'];
+const IDS = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6', 'MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7', 'PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8', 'PV9', 'RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'];
 const M = '−';
 const nums = s => (String(s).match(/\d+/g) || []).map(Number);
 const N = s => Number(String(s).replace(/,/g, ''));              // "6,250" → 6250
@@ -41,15 +41,26 @@ function readQ(q) {
     const n = N(m[1]), d = +m[2], digs = String(n).split('').reverse().map(Number), p = digs.indexOf(d);
     return { kind: 'value', n, d, p, digs, ans: d * 10 ** p, ok: p >= 0 && digs.lastIndexOf(d) === p };
   }
-  if ((m = q.q.match(/^What number is ([\d +]+)\?$/))) {
-    const parts = m[1].split(' + ').map(Number);
+  if (q.q === 'Which sentence is true?' && Array.isArray(q.choices)) {
+    const truth = c => { const k = String(c).match(/^([\d,]+) is (greater than|less than|equal to) ([\d,]+)$/); if (!k) return null; const a = N(k[1]), b = N(k[3]); return { a, b, ok: k[2] === 'greater than' ? a > b : k[2] === 'less than' ? a < b : a === b, rel: k[2] }; };
+    const ts = q.choices.map(truth);
+    const right = q.choices.filter((c, i) => ts[i] && ts[i].ok);
+    const nums = ts.find(Boolean);
+    return { kind: 'compare', truth, a: nums && Math.max(nums.a, nums.b), b: nums && Math.min(nums.a, nums.b), ans: right.length === 1 ? right[0] : `(${right.length} true sentences)` };
+  }
+  if ((m = q.q.match(/^([\d,]+) is the same as how many (tens|hundreds)\?$/))) {
+    const n = N(m[1]), unit = m[2] === 'tens' ? 10 : 100;
+    return { kind: 'rename', n, unit, ans: n / unit };
+  }
+  if ((m = q.q.match(/^What number is ([\d +,]+)\?$/))) {
+    const parts = m[1].split(' + ').map(N);
     return { kind: 'expanded', parts, ans: parts.reduce((a, b) => a + b, 0) };
   }
   if ((m = q.q.match(/^([\d,]+) is between which two (ten|hundred|thousand)s\?$/))) {
     const n = N(m[1]), unit = UNIT[m[2]], low = Math.floor(n / unit) * unit;
     return { kind: 'bench', n, unit, low, ans: `${F(low)} and ${F(low + unit)}` };
   }
-  if ((m = q.q.match(/^What number is halfway between ([\d,]+) and ([\d,]+)\?$/))) {
+  if ((m = q.q.match(/^What is halfway from ([\d,]+) to ([\d,]+)\?$/))) {
     const a = N(m[1]), b = N(m[2]);
     return { kind: 'halfway', low: a, high: b, unit: b - a, ans: (a + b) / 2 };
   }
@@ -151,11 +162,21 @@ function slipFits(tag, pick, R, lesson, q) {
     case 'Two places too far left': return R.kind === 'value' && pick === R.d * 10 ** (R.p + 2);
     case 'One place too far right': return R.kind === 'value' && pick === R.d * 10 ** (R.p - 1);
     case 'Gave the whole number': return R.kind === 'value' && pick === R.n;
-    case 'Left out the zero in the tens place': return R.kind === 'expanded' && String(pick) === String(R.ans).replace(/^(\d)0(\d)$/, '$1$2');
-    case 'Swapped the tens and ones': return R.kind === 'expanded' && String(pick) === String(R.ans).replace(/^(\d)(\d)(\d)$/, '$1$3$2');
+    case 'Left out a zero': return R.kind === 'expanded' && /0/.test(String(R.ans)) && String(pick) === String(R.ans).replace(/0/g, '');
+    case 'Put a part in the wrong place': { if (R.kind !== 'expanded') return false; const last = R.parts[R.parts.length - 1]; return pick === R.ans - last + last * 10; }
+    case 'Swapped the last two places': return R.kind === 'expanded' && String(pick) === String(R.ans).slice(0, -2) + String(R.ans).slice(-1) + String(R.ans).slice(-2, -1);
     case 'Added the digits': return R.kind === 'expanded' && pick === String(R.ans).split('').reduce((a, b) => a + +b, 0);
-    case 'Hundreds off by one': return R.kind === 'expanded' && Math.abs(pick - R.ans) === 100;
-    case 'Tens off by one': return R.kind === 'expanded' && Math.abs(pick - R.ans) === 10;
+    case 'Biggest place off by one': return R.kind === 'expanded' && Math.abs(pick - R.ans) === 10 ** (String(R.ans).length - 1);
+    case 'Compared the wrong way': { const t = R.kind === 'compare' && R.truth(pick); return !!t && !t.ok && t.rel !== 'equal to'; }
+    case 'Said the numbers are equal': { const t = R.kind === 'compare' && R.truth(pick); return !!t && t.rel === 'equal to' && t.a !== t.b; }
+    case 'Gave the same number': return R.kind === 'rename' && pick === R.n;
+    case 'Counted tens instead of hundreds': return R.kind === 'rename' && R.unit === 100 && pick * 10 === R.n;
+    case 'Gave only the tens digit': return R.kind === 'rename' && R.unit === 10 && pick === Math.floor(R.n / 10) % 10;
+    case 'Gave only the hundreds digit': return R.kind === 'rename' && R.unit === 100 && pick === Math.floor(R.n / 100) % 10;
+    case 'Wrote the numbers side by side': return R.kind === 'fact' && R.op === '×' && pick === Number(`${R.a}${R.b}`);
+    case 'Counted only the hundreds': return R.kind === 'rename' && R.unit === 10 && pick === Math.floor(R.n / 100);
+    case 'Counted only the thousands': return R.kind === 'rename' && R.unit === 100 && pick === Math.floor(R.n / 1000);
+    case 'Added a zero instead of taking one off': return R.kind === 'rename' && pick === R.n * 10;
     case 'Two zeros instead of one': return R.op === '×' && pick === ans * 10;
     case 'One zero instead of two': return R.op === '×' && pick * 10 === ans;
     case 'Too many zeros': return R.op === '×' && pick > ans && pick % (ans * 10) === 0;
@@ -229,10 +250,12 @@ function inLimits(lesson, R, q) {
     case 'PV1': return R.kind === 'value' && R.n >= 100 && R.n <= 999 && R.p >= 1;
     case 'PV2': return R.kind === 'expanded' && R.ans >= 100 && R.ans <= 999;
     case 'PV3': return R.kind === 'value' && R.n >= 1000 && R.n <= 9999 && R.p >= 1;
-    case 'PV4': return R.kind === 'fact' && R.a === 10 && R.b >= 2 && R.b <= 99;
-    case 'PV5': return R.kind === 'fact' && R.a === 100 && R.b >= 2 && R.b <= 49;
-    case 'PV6': return R.kind === 'fact' && R.a >= 2 && R.a <= 9 && R.b % 10 === 0 && R.b >= 20 && R.b <= 90;
-    case 'PV7': return ['PV2', 'PV3', 'PV4', 'PV5', 'PV6'].some(id => inLimits(id, R, q));
+    case 'PV4': return R.kind === 'compare' && R.a >= 1000 && R.a <= 9999 && R.b >= 1000;
+    case 'PV5': return R.kind === 'rename' && R.n % R.unit === 0 && R.ans >= 2;
+    case 'PV6': return R.kind === 'fact' && R.a === 10 && R.b >= 2 && R.b <= 99;
+    case 'PV7': return R.kind === 'fact' && R.a === 100 && R.b >= 2 && R.b <= 49;
+    case 'PV8': return R.kind === 'fact' && R.a >= 2 && R.a <= 9 && R.b % 10 === 0 && R.b >= 20 && R.b <= 90;
+    case 'PV9': return ['PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8'].some(id => inLimits(id, R, q));
     case 'RO1': return R.kind === 'bench';
     case 'RO2': return R.kind === 'halfway' && [10, 100].includes(R.unit);
     case 'RO3': return R.kind === 'round' && R.unit === 10;
@@ -275,10 +298,10 @@ function checkItem(lesson, q) {
   if (!q.choices.includes(q.answer)) out.push(`${q.id}: the answer is not a choice`);
   if (q.choices.filter(c => same(R.ans, c)).length !== 1) out.push(`${q.id}: not exactly one right choice`);
   q.choices.filter(c => c !== q.answer).forEach(c => {
-    if (R.kind === 'bench' ? !/^[\d,]+ and [\d,]+$/.test(c) : !/^\d{1,3}(,\d{3})*$/.test(c)) out.push(`${q.id}: choice "${c}" is not written right`);
+    if (R.kind === 'bench' ? !/^[\d,]+ and [\d,]+$/.test(c) : R.kind === 'compare' ? !R.truth(c) : !/^\d{1,3}(,\d{3})*$/.test(c)) out.push(`${q.id}: choice "${c}" is not written right`);
     const s = q.slips && q.slips[c];
     if (!s || !s.say || !s.tag) { out.push(`${q.id}: wrong choice ${c} has no mistake note`); return; }
-    if (!slipFits(s.tag, R.kind === 'bench' ? c : N(c), R, lesson, q)) out.push(`${q.id}: slip "${s.tag}" does not fit the pick ${c} (answer ${R.ans})`);
+    if (!slipFits(s.tag, R.kind === 'bench' || R.kind === 'compare' ? c : N(c), R, lesson, q)) out.push(`${q.id}: slip "${s.tag}" does not fit the pick ${c} (answer ${R.ans})`);
   });
   Object.keys(q.slips || {}).forEach(k => { if (!q.choices.includes(k)) out.push(`${q.id}: a note for ${k}, which is not a choice`); });
   badEquations(allText(q)).forEach(e => out.push(`${q.id}: false equation "${e}"`));
@@ -290,7 +313,7 @@ function checkItem(lesson, q) {
   if (q.fact) {
     const fv = q.fact.op === '+' ? q.fact.a + q.fact.b : q.fact.op === '×' ? q.fact.a * q.fact.b : q.fact.a - q.fact.b;
     if (fv !== N(q.answer)) out.push(`${q.id}: the fact tag ${q.fact.a} ${q.fact.op} ${q.fact.b} does not give the answer`);
-  } else if (!['partner', 'value', 'expanded', 'bench', 'halfway', 'round'].includes(R.kind)) out.push(`${q.id}: no fact tag (a miss would not reach the student's list)`);
+  } else if (!['partner', 'value', 'expanded', 'bench', 'halfway', 'round', 'compare', 'rename'].includes(R.kind)) out.push(`${q.id}: no fact tag (a miss would not reach the student's list)`);
   // Count On / Count Back notes start at the right number
   if (lesson === 'AS1' && R.kind === 'fact') Object.values(q.slips).concat([{ say: q.explanation }]).forEach(s => {
     const m = /Start at (\d+)\./.exec(s.say); if (m && +m[1] !== Math.max(R.a, R.b)) out.push(`${q.id}: Count On starts at ${m[1]}, not the bigger number`);
@@ -316,7 +339,7 @@ function checkTeach(q) {
   return out;
 }
 
-const factKey = q => { const R = readQ(q); return !R ? q.q : ['value', 'expanded', 'bench', 'halfway', 'round'].includes(R.kind) ? `${R.kind}:${q.q}` : R.op === '×' ? (R.kind === 'fact' ? `x${Math.min(R.a, R.b)}x${Math.max(R.a, R.b)}` : `${R.kind}${R.a}x${R.b}`) : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
+const factKey = q => { const R = readQ(q); return !R ? q.q : R.kind === 'compare' ? `compare:${R.a}/${R.b}` : ['value', 'expanded', 'bench', 'halfway', 'round', 'rename'].includes(R.kind) ? `${R.kind}:${q.q}` : R.op === '×' ? (R.kind === 'fact' ? `x${Math.min(R.a, R.b)}x${Math.max(R.a, R.b)}` : `${R.kind}${R.a}x${R.b}`) : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
 
 function checkLesson(id) {
   const out = [];
@@ -338,7 +361,7 @@ function checkLesson(id) {
       const k = factKey(q);
       if (seen.has(k)) out.push(`${where} ${q.id}: the same fact twice in one version (${q.q})`);
       seen.add(k);
-      if (!/^RO1|^RO6/.test(id) || !/ and /.test(q.answer)) {
+      if (!/ and | than | equal /.test(q.answer)) {
         const sorted = q.choices.map(N).sort((x, y) => x - y);
         ranks[sorted.indexOf(N(q.answer))]++;
       }
@@ -349,7 +372,7 @@ function checkLesson(id) {
       const fresh = scored.filter(q => !v1facts.has(factKey(q))).length;
       // Make 10 has only 9 ten partners to go round. The multiplication facts lessons draw from small sets (the 3s
       // and 4s are 19 facts), so a retry repeats some facts by nature; it still gets a different set and order.
-      const need = id === 'AS2' ? 0.5 : /^(MU[3457]|PV[45])$/.test(id) ? 0.3 : /^(MU|PV|RO)/.test(id) ? 0.5 : 0.7;
+      const need = id === 'AS2' ? 0.5 : /^(MU[3457]|PV[567])$/.test(id) ? 0.3 : /^(MU|PV|RO)/.test(id) ? 0.5 : 0.7;
       if (fresh < scored.length * need) out.push(`${where}: only ${fresh} of ${scored.length} questions are new facts`);
     }
   });
@@ -382,9 +405,9 @@ function checkOwnFacts() {
   for (let a = 0; a <= 20; a++) for (let b = 0; b <= 20; b++) for (const op of ['+', M, '×']) {
     const f = { op, a, b };
     IDS.forEach(id => {
-      if (!LL.fits(id, f)) return;
+      if (!LL.fitsOwn(id, f)) return;
       let q;
-      try { q = LL.factItem(id, f, `${id}-M1`, r, 'own'); } catch (e) { out.push(`${id} own fact ${a} ${op} ${b}: did not build (${e.message})`); return; }
+      try { q = LL.ownItem(id, f, `${id}-M1`, r, 'own'); } catch (e) { out.push(`${id} own fact ${a} ${op} ${b}: did not build (${e.message})`); return; }
       built++;
       const item = { ...q, mine: true };
       const errs = checkItem(id, item);
@@ -395,6 +418,48 @@ function checkOwnFacts() {
       errs.forEach(e => out.push(`own fact ${a} ${op} ${b} in ${e}`));
     });
   }
+  // typed records: their place value and rounding misses ("R 6284/100"). Each is built in every lesson that takes it,
+  // passes 1–6, and asks about THAT number — worked out here again from the words.
+  const recs = [];
+  [123, 407, 958, 1234, 6284, 7051, 30465, 254613].forEach(n => String(n).split('').forEach((d, i, arr) => { const p = arr.length - 1 - i; if (p >= 1) recs.push({ type: 'V', n, p }); }));
+  [304, 572, 6284, 9050, 41207].forEach(n => recs.push({ type: 'E', n }));
+  [[6284, 6248], [5419, 4519], [720, 702], [3001, 2999]].forEach(([n, m]) => recs.push({ type: 'C', n, m }));
+  [[340, 10], [1270, 10], [4500, 100], [9900, 100], [3000, 100]].forEach(([n, unit]) => recs.push({ type: 'N', n, unit }));
+  [[46, 10], [6284, 100], [418, 100], [3742, 1000], [6284, 10], [68750, 1000], [68750, 100]].forEach(([n, unit]) => recs.push({ type: 'B', n, unit }));
+  [[45, 10], [650, 100], [6250, 100], [3500, 1000], [68500, 1000]].forEach(([n, unit]) => recs.push({ type: 'H', n, unit }));
+  [[46, 10], [32, 10], [350, 100], [6284, 100], [6284, 1000], [3742, 1000], [95, 10], [9950, 100], [68750, 1000], [81642, 100]].forEach(([n, unit]) => recs.push({ type: 'R', n, unit }));
+  const truth = rec => {
+    const u = rec.unit, low = Math.floor(rec.n / u) * u;
+    switch (rec.type) {
+      case 'V': return Number(String(rec.n).split('').reverse()[rec.p]) * 10 ** rec.p;
+      case 'E': return rec.n;
+      case 'C': return `${rec.n.toLocaleString('en-US')} is greater than ${rec.m.toLocaleString('en-US')}`;
+      case 'N': return rec.n / u;
+      case 'B': return `${low.toLocaleString('en-US')} and ${(low + u).toLocaleString('en-US')}`;
+      case 'H': return low + u / 2;
+      case 'R': return rec.n - low >= u / 2 ? low + u : low;
+    }
+  };
+  let typed = 0;
+  const lessonsTaking = {};
+  recs.forEach(rec => {
+    const takers = IDS.filter(id => LL.fitsOwn(id, rec));
+    lessonsTaking[rec.type] = (lessonsTaking[rec.type] || 0) + takers.length;
+    takers.forEach(id => {
+      let q;
+      try { q = LL.ownItem(id, rec, `${id}-M1`, r, 'own'); } catch (e) { out.push(`${id} own ${LL.ownKey(rec)}: did not build (${e.message})`); return; }
+      typed++;
+      const item = { ...q, mine: true };
+      const errs = checkItem(id, item);
+      const R = readQ(item), want = truth(rec);
+      const got = R && (typeof want === 'string' ? R.ans : N(R.ans));
+      if (got !== want) errs.push(`asks "${item.q}" (answer ${R && R.ans}), but the record ${LL.ownKey(rec)} needs ${want}`);
+      if (!item.mistake || LL.ownKey(item.mistake) !== LL.ownKey(rec)) errs.push(`the item is not tagged with its record ${LL.ownKey(rec)}`);
+      errs.forEach(e => out.push(`own ${LL.ownKey(rec)} in ${e}`));
+    });
+  });
+  ['V', 'E', 'C', 'N', 'B', 'H', 'R'].forEach(t => { if (!lessonsTaking[t]) out.push(`no lesson takes a typed record of type ${t}`); });
+  built += typed;
   return { out, built };
 }
 
@@ -435,6 +500,11 @@ function plants() {
     ['benchmark question shows the ends', 'RO1', () => { const q = clone(window.LAB_RO1.find(x => !x.kind)); q.pic = { rline: { ...q.pic.rline, hideEnds: false } }; return q; }],
     ['halfway in the wrong place', 'RO2', () => { const q = clone(window.LAB_RO2.find(x => !x.kind)); const R = readQ(q); q.answer = String(R.low + R.unit / 10 * 4); if (!q.choices.includes(q.answer)) q.choices[3] = q.answer; return q; }],
     ['a 4-digit answer without its comma', 'PV3', () => { const q = clone(window.LAB_PV3.find(x => !x.kind)); const plain = String(N(q.answer)); q.choices = q.choices.map(c => (c === q.answer ? plain : c)); q.answer = plain; return q; }],
+    ['compare: two true sentences', 'PV4', () => { const q = clone(window.LAB_PV4.find(x => !x.kind)); const w = wrongOf(q); const t = q.answer.replace(/ is greater than | is less than /, m => m); q.choices[q.choices.indexOf(w)] = t.replace(/^([\d,]+) is (greater|less) than ([\d,]+)$/, (m, a, rel, b) => `${b} is ${rel === 'greater' ? 'less' : 'greater'} than ${a}`); return q; }],
+    ['compare: "wrong way" label on the equal choice', 'PV4', () => { const q = clone(window.LAB_PV4_V.flat().find(x => !x.kind && Object.values(x.slips).some(s => s.tag === 'Said the numbers are equal'))); const w = Object.keys(q.slips).find(k => q.slips[k].tag === 'Said the numbers are equal'); q.slips[w].tag = 'Compared the wrong way'; return q; }],
+    ['rename: a decimal choice', 'PV5', () => { const q = clone(window.LAB_PV5.find(x => !x.kind)); const w = wrongOf(q); q.choices[q.choices.indexOf(w)] = '7.5'; q.slips['7.5'] = q.slips[w]; delete q.slips[w]; return q; }],
+    ['rename: hundreds asked, tens answered', 'PV5', () => { const q = clone(window.LAB_PV5_V.flat().find(x => !x.kind && / hundreds\?$/.test(x.q))); const R = readQ(q); q.answer = String(R.n / 10); if (!q.choices.includes(q.answer)) q.choices[3] = q.answer; return q; }],
+    ['times 10 in the times 100 lesson', 'PV7', () => { const q = clone(window.LAB_PV6.find(x => !x.kind)); return q; }],
     ['times-as-many outside the lesson', 'MU6', () => { const q = clone(window.LAB_MU6.find(x => !x.kind)); q.q = q.q.replace(/has (\d+) times as many/, 'has 9 times as many'); return q; }]
   ];
   let caught = 0;

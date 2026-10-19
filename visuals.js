@@ -133,7 +133,7 @@
   }
 
   /* ── PLACE CHART ── cfg = { n, mark } (mark = a place: 0 ones, 1 tens …) or { parts: [300, 40, 7] } (expanded form cards) */
-  const PLACE_NAMES = ['Ones', 'Tens', 'Hundreds', 'Thousands'];
+  const PLACE_NAMES = ['Ones', 'Tens', 'Hundreds', 'Thousands', 'Ten Thousands', 'Hundred Thousands'];
   function placesHTML(cfg) {
     if (cfg.parts) {
       const said = `Expanded form parts: ${cfg.parts.join(', ')}.`;
@@ -142,9 +142,10 @@
     const d = String(cfg.n).split('').reverse();
     const cols = d.map((ch, i) => i).reverse();
     const head = cols.map(i => `<th class="${i === cfg.mark ? 'lv-mark' : ''}">${PLACE_NAMES[i]}</th>`).join('');
-    const row = cols.map(i => `<td class="${i === cfg.mark ? 'lv-mark' : ''}">${d[i]}</td>`).join('');
-    const val = cfg.mark != null ? `${d[cfg.mark]} ${PLACE_NAMES[cfg.mark].toLowerCase()} = ${(Number(d[cfg.mark]) * 10 ** cfg.mark).toLocaleString('en-US')}` : '';
-    const said = `A place chart for ${Number(cfg.n).toLocaleString('en-US')}.` + (val ? ` ${val}.` : '');
+    const rowOf = digs => cols.map(i => `<td class="${i === cfg.mark ? 'lv-mark' : ''}">${digs[i] == null ? '' : digs[i]}</td>`).join('');
+    const row = rowOf(d) + (cfg.n2 != null ? `</tr><tr>${rowOf(String(cfg.n2).split('').reverse())}` : '');
+    const val = cfg.mark != null && cfg.n2 == null ? `${d[cfg.mark]} ${PLACE_NAMES[cfg.mark].toLowerCase()} = ${(Number(d[cfg.mark]) * 10 ** cfg.mark).toLocaleString('en-US')}` : '';
+    const said = (cfg.n2 != null ? `A place chart for ${Number(cfg.n).toLocaleString('en-US')} and ${Number(cfg.n2).toLocaleString('en-US')}.` : `A place chart for ${Number(cfg.n).toLocaleString('en-US')}.`) + (val ? ` ${val}.` : '');
     return `<div class="lv lv-places" role="img" aria-label="${esc(said)}"><table class="lv-place-table" aria-hidden="true"><tr>${head}</tr><tr>${row}</tr></table>` +
       (val ? `<div class="lv-cap" aria-hidden="true">${val}</div>` : '') + `</div>`;
   }

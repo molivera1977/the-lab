@@ -58,7 +58,7 @@ let SESSION_ID = (() => {
 const STRANDS = [
   { id: 'as', icon: '➕', name: 'Adding and Subtracting to 20', lessons: ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6'] },
   { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: ['MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'], after: 'as' },
-  { id: 'pv', icon: '🔢', name: 'Place Value: 10s and 100s', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7'] },
+  { id: 'pv', icon: '🔢', name: 'Place Value', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8', 'PV9'] },
   { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'] }
 ];
 const LESSONS = {
@@ -78,10 +78,12 @@ const LESSONS = {
   PV1: { title: 'Ones, Tens, Hundreds',             icon: '🔢' },
   PV2: { title: 'Expanded Form',                    icon: '🧩' },
   PV3: { title: 'Thousands',                        icon: '🏔️' },
-  PV4: { title: 'Times 10',                         icon: '🔟' },
-  PV5: { title: 'Times 100',                        icon: '💯' },
-  PV6: { title: 'Multiples of 10',                  icon: '✖️' },
-  PV7: { title: 'Place Value Check',                icon: '🏁', check: true, hints: false, pre: false },
+  PV4: { title: 'Compare Numbers',                  icon: '⚖️' },
+  PV5: { title: 'Rename Numbers',                   icon: '🔁' },
+  PV6: { title: 'Times 10',                         icon: '🔟' },
+  PV7: { title: 'Times 100',                        icon: '💯' },
+  PV8: { title: 'Multiples of 10',                  icon: '✖️' },
+  PV9: { title: 'Place Value Check',                icon: '🏁', check: true, hints: false, pre: false },
   RO1: { title: 'The Two Benchmarks',               icon: '📍' },
   RO2: { title: 'Halfway',                          icon: '↔️' },
   RO3: { title: 'Round to the Nearest Ten',         icon: '🎯' },
@@ -216,6 +218,14 @@ function submitScoreFinal() {
    them with what the device already has. Nothing here is in the site's files. A guest's work is never sent. */
 const FACT_RE = /^(\d+) ([+−×-]) (\d+) \(([^)]*)\)$/;
 const factKey = f => `${f.a} ${f.op} ${f.b}`;
+/* Mistakes that are not plain facts (Marcos 10/19: "everything in the lab should be tailored to each student's needs"):
+   { type, n, p | m | unit } — V value of a digit · E expanded form · C compare · N rename · B benchmarks · H halfway · R round.
+   Saved as "R 6284/100 (6300; 6200)" beside the facts ("6 + 8 (13, 14)"). Picks are kept without commas. */
+const OWN_RE = /^([VECNBHR]) (\d+)\/(\d+) \(([^)]*)\)$/;
+const recKey = rec => (rec && rec.type ? `${rec.type} ${rec.n}/${rec.type === 'V' ? rec.p : rec.type === 'C' ? rec.m : rec.type === 'E' ? 0 : rec.unit}` : factKey(rec));
+const normPick = p => String(p == null ? '' : p).replace(/,/g, '').trim();
+const showPick = p => String(p).replace(/\d+/g, d => (Number(d) >= 1000 ? Number(d).toLocaleString('en-US') : d));
+const recordOf = q => q && (q.mistake || q.fact) || null;
 function readWeak(name) {
   try { return JSON.parse(localStorage.getItem(WEAK_KEY + ':' + name) || '{}') || {}; } catch (e) { return {}; }
 }
@@ -227,10 +237,12 @@ function parseFactList(text, src) {
   const out = {};
   String(text || '').split(' | ').forEach(entry => {
     const m = entry.trim().match(FACT_RE);
-    if (!m) return;
-    const f = { op: m[2] === '+' ? '+' : m[2] === '×' ? '×' : '−', a: +m[1], b: +m[3] };
-    const k = factKey(f);
-    const picks = m[4].split(',').map(x => x.trim()).filter(x => x && x !== '?');
+    const o = m ? null : entry.trim().match(OWN_RE);
+    if (!m && !o) return;
+    const f = m ? { op: m[2] === '+' ? '+' : m[2] === '×' ? '×' : '−', a: +m[1], b: +m[3] }
+      : { type: o[1], n: +o[2], ...(o[1] === 'V' ? { p: +o[3] } : o[1] === 'C' ? { m: +o[3] } : o[1] === 'E' ? {} : { unit: +o[3] }) };
+    const k = recKey(f);
+    const picks = (m ? m[4].split(',') : o[4].split(';')).map(x => normPick(x)).filter(x => x && x !== '?');
     const prev = out[k] || { ...f, picks: [], right: 0, src };
     picks.forEach(p => { if (!prev.picks.includes(p)) prev.picks.push(p); });
     out[k] = prev;
@@ -238,7 +250,7 @@ function parseFactList(text, src) {
   return out;
 }
 function factListText(weak) {
-  return Object.values(weak).map(f => `${factKey(f)} (${f.picks.join(', ')})`).join(' | ');
+  return Object.values(weak).map(f => `${recKey(f)} (${f.picks.join(f.type ? '; ' : ', ')})`).join(' | ');
 }
 /* Join two lists: picks are added up; a fact mastered on one side stays mastered (it is left out of `mastered`). */
 function mergeWeak(into, from, mastered) {
@@ -330,9 +342,11 @@ async function loadHistory(name) {
 /* After an answer to one of the student's facts (or any fact a lesson asks): update the list.
    A miss adds the fact (or the new wrong pick); right MASTER_RIGHT times takes it off. */
 function noteFact(name, q, pick, correct) {
-  if (SHARE_MODE || reviewMode || !name || !q.fact) return { repeat: false };
+  const rec = recordOf(q);
+  if (SHARE_MODE || reviewMode || !name || !rec) return { repeat: false };
   const weak = readWeak(name);
-  const k = factKey(q.fact);
+  const k = recKey(rec);
+  pick = normPick(pick);
   const had = weak[k];
   let repeat = false;
   if (correct) {
@@ -346,7 +360,7 @@ function noteFact(name, q, pick, correct) {
     }
   } else {
     repeat = !!had && had.picks.includes(String(pick));
-    const f = had || { ...q.fact, picks: [], right: 0, src: 'lab' };
+    const f = had || { ...rec, picks: [], right: 0, src: 'lab' };
     if (!f.picks.includes(String(pick))) f.picks.push(String(pick));
     f.right = 0;
     weak[k] = f;
@@ -1305,18 +1319,19 @@ const app = {
      Built by the lesson's own builder (lessons.js), so the slips and pictures match the lesson. */
   _mineFor(form, bank, max, pre) {
     if (reviewMode || SHARE_MODE || !window.LabLessons) return [];
-    const asked = new Set(bank.filter(q => q.fact).map(q => factKey(q.fact)));
-    const weak = Object.values(readWeak(this.studentName)).filter(f => LabLessons.fits(form, f) && !asked.has(factKey(f)));
+    const asked = new Set(bank.filter(recordOf).map(q => recKey(recordOf(q))));
+    const weak = Object.values(readWeak(this.studentName)).filter(f => LabLessons.fitsOwn(form, f) && !asked.has(recKey(f)));
     // most-missed first; ties broken differently each try, so a long list takes turns
     const r = LabLessons.rng(LabLessons.seedOf(`${this.studentName}|${form}|${this.version}|${Math.floor(Date.now() / 600000)}`));
     const order = LabLessons.shuffled(weak, r).sort((x, y) => y.picks.length - x.picks.length);
     const skill = (LabLessons.LESSONS.find(L => L.id === form) || {}).skill || form;
     return order.slice(0, max).map((f, i) => {
-      const q = LabLessons.factItem(form, f, `${form}-${pre ? 'K' : 'M'}${i + 1}`, r, skill);
-      const item = { ...q, fact: { op: f.op, a: f.a, b: f.b }, mine: true, before: [...f.picks] };
+      const q = LabLessons.ownItem(form, f, `${form}-${pre ? 'K' : 'M'}${i + 1}`, r, skill);
+      const item = { ...q, mine: true, before: [...f.picks] };
       // their earlier wrong answer is always a choice (a repeat can only be seen if it can be picked):
-      // it takes the place of the last wrong choice, with the fact worked out in its note
-      const earlier = [...f.picks].reverse().find(p => /^\d+$/.test(p) && p !== item.answer);
+      // it takes the place of the last wrong choice, with the problem worked out in its note
+      const shapeOk = p => (/ and /.test(item.answer) ? / and /.test(p) : / than | equal /.test(item.answer) ? / than | equal /.test(p) : /^\d+$/.test(p));
+      const earlier = [...f.picks].reverse().map(showPick).find(p => shapeOk(normPick(p)) && normPick(p) !== normPick(item.answer));
       if (earlier && !item.choices.includes(earlier)) {
         const out = item.choices.filter(c => c !== item.answer).pop();
         item.choices = item.choices.map(c => (c === out ? earlier : c));
@@ -1362,8 +1377,14 @@ const app = {
     if (!offerPre) rawBank = rawBank.filter(q => q.kind !== 'pre');
     // the student's own missed facts: up to MINE_PRE_MAX in Show what you know, up to MINE_MAX more questions
     const preIdx = rawBank.filter(q => q.kind === 'pre').length;
-    const minePre = offerPre && preIdx ? this._mineFor(form, rawBank, MINE_PRE_MAX, true) : [];
-    const mineQ = this._mineFor(form, [...rawBank, ...minePre], MINE_MAX, false);
+    // ONE YOU MISSED BEFORE (Marcos 10/19: tailored to each student): their most-missed mistake for this lesson,
+    // worked out as an example they must hear, on their first try at the lesson. It is picked first, so even a student
+    // with one mistake for this lesson sees it. It is not asked in that try (they just heard its answer); it stays on
+    // their list and comes back as a question on a retry and in the strand's check.
+    const exampleOf = !reviewMode && triesDone === 0 ? this._mineFor(form, rawBank, 1, false) : [];
+    const example = exampleOf[0] || null;
+    const minePre = offerPre && preIdx ? this._mineFor(form, [...rawBank, ...exampleOf], MINE_PRE_MAX, true) : [];
+    const mineQ = this._mineFor(form, [...rawBank, ...exampleOf, ...minePre], MINE_MAX, false);
     if (minePre.length) rawBank.splice(preIdx, 0, ...minePre);
     if (mineQ.length) {
       // spread them through "your turn", never two in a row
@@ -1373,6 +1394,17 @@ const app = {
         const slot = scoredAt[Math.min(scoredAt.length - 1, gap * (mineQ.length - k))];
         rawBank.splice(slot + 1, 0, m);
       });
+    }
+    if (example) {
+      const firstQ = rawBank.findIndex(isScored);
+      const last = example.before.length ? showPick(example.before[example.before.length - 1]) : '';
+      // a compare question names its numbers only in the choices: say them, and read their pick as a quote
+      const nums = example.mistake && example.mistake.type === 'C' ? [example.mistake.n, example.mistake.m].map(showPick) : null;
+      const said = / than | equal /.test(last) ? `"${last}"` : last;
+      const lines = [`This one is yours. You missed it before.`, nums ? `Compare ${nums[0]} and ${nums[1]}. Which sentence is true?` : example.q, ...(last ? [`You picked ${said}.`] : []),
+        ...String(example.explanation).split(/(?<=\.)\s+/).filter(Boolean)];
+      rawBank.splice(firstQ < 0 ? rawBank.length : firstQ, 0, { id: `${form}-YOU`, kind: 'watch', skill: 'Lab step', mine: true,
+        title: 'One you missed before', text: lines.join('\n'), pic: example.explain || example.pic || null });
     }
     // after Show what you know (when it was not all right): one short screen, then the lesson
     const nPre = rawBank.filter(q => q.kind === 'pre').length;
@@ -1399,7 +1431,7 @@ const app = {
     }
 
     this.show('quiz-screen');
-    logEvent('start', { v: this.version + 1, mine: minePre.length + mineQ.length });
+    logEvent('start', { v: this.version + 1, mine: minePre.length + mineQ.length, ...(example ? { ex: recKey(recordOf(example)) } : {}) });
     this.startTimer();
     this.renderQuestion();
     if (!reviewMode && !SHARE_MODE) submitScorePartial();   // Mr. O sees who is in which lesson right away
@@ -1753,6 +1785,7 @@ const app = {
     document.getElementById('question-text').innerHTML = `<span class="watch-tag">👀 Watch and listen</span> ${formatMathText(q.title)}`;
     document.getElementById('speak-q-btn').classList.add('hidden');   // the Listen button below reads this screen
     document.getElementById('q-visual').innerHTML = '';
+    document.getElementById('q-listen').innerHTML = '';   // no "Listen to the question" on a screen with no question
     document.getElementById('q-words').innerHTML = '';
     document.getElementById('answers').innerHTML = '';
     ['confirm-btn', 'next-btn', 'next-timer-bar', 'reading-timer-bar'].forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -1904,8 +1937,8 @@ const app = {
     // as before is a REPEAT (Marcos 10/17: "see if they repeat their mistakes").
     const { repeat } = noteFact(this.studentName, q, this.selectedAnswer, correct);
     this.lastRepeat = repeat;
-    if (repeat) logEvent('repeat', { id: q.id, f: factKey(q.fact), pick: this.selectedAnswer });
-    if (!correct && q.mine) logEvent('mine', { id: q.id, f: factKey(q.fact), pick: this.selectedAnswer });
+    if (repeat) logEvent('repeat', { id: q.id, f: recKey(recordOf(q)), pick: this.selectedAnswer });
+    if (!correct && q.mine) logEvent('mine', { id: q.id, f: recKey(recordOf(q)), pick: this.selectedAnswer });
 
     if (isStep) {
       // A step is teaching, not a question: it never changes the score and is not a "missed
