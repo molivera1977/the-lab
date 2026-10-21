@@ -843,6 +843,9 @@ button.answer-btn.incorrect { background: #f8d7da; border-color: #dc3545; color:
 .lv-dot-start { fill: #e74c3c; }
 .lv-dot-end { fill: #27ae60; }
 .lv-hop { fill: none; stroke: #2e86c1; stroke-width: 3; }
+.lv-hop-b { stroke: #d35400; }                     /* Make 10 on a number line: the hops after 10 */
+.lv-dot-split { fill: #f4c430; stroke: #7a5a00; stroke-width: 3; }
+.lv-hop-n-b { fill: #a04000; }
 .lv-hop-n { font: bold 16px "Comic Sans MS", cursive, sans-serif; fill: #1f618d; text-anchor: middle; }
 .lv-frames { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: center; }
 .lv-frame { display: grid; grid-template-columns: repeat(5, 46px); grid-template-rows: repeat(2, 46px); border: 3px solid #34495e; background: #fff; }

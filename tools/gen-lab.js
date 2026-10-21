@@ -15,7 +15,9 @@
    the two numbers. Each wrong choice stands for one slip, and its note names that slip with
    the problem's own numbers (Marcos 10/12: name the mistake, do not just say "try again").
    A retry gets new facts (Marcos 10/16): 4 versions per lesson, version 1 = LAB_<ID>.
-   The worked examples and steps stay the same in every version; the questions change.
+   A retry teaches again (Marcos 10/21: "a new worked example and a different explanation on the second try"):
+   each version's worked examples and steps use their own facts, and versions 2 and 4 show the same method with a
+   new picture (lessons.js teach(skill, ctx); ctx.way 'B'). A worked example's fact is never a question in its version.
 
    Run:  node tools/gen-lab.js        → writes data/as1.js … data/as6.js, data/skills.js
    Check: node tools/check-lab.js     (an independent checker — it re-works every answer)
@@ -40,15 +42,15 @@ const sameFactAny = t => {
 };
 
 const ORDERED = new Set(['MU1', 'MU2', 'MU6']);   // groups, arrays, times as many: a × b and b × a are different pictures
-function buildVersion(L, v, lessonUsed) {
+function buildVersion(L, v, lessonUsed, teachUsed) {
   const r = rng(seedOf(`${L.id}-v${v}`));
   const sameFact = t => (ORDERED.has(L.id) ? JSON.stringify(t) : sameFactAny(t));
   const items = [];
   const taken = new Set();
   const usedFact = new Set();
   const markTaken = t => { taken.add(JSON.stringify(t)); usedFact.add(sameFact(t)); if (Array.isArray(t) && t.length === 2) taken.add(JSON.stringify([t[1], t[0]])); };
-  const pick = (pool, n) => {
-    const order = [...shuffled(pool, r)];
+  const pick = (pool, n, rr = r) => {
+    const order = [...shuffled(pool, rr)];
     const fresh = order.filter(t => !usedFact.has(sameFact(t)) && !lessonUsed.has(sameFact(t)));
     const reuse = order.filter(t => !usedFact.has(sameFact(t)) && lessonUsed.has(sameFact(t)));
     const out = [];
@@ -64,7 +66,22 @@ function buildVersion(L, v, lessonUsed) {
   if (L.pre) {
     pick(L.pre.pool(), 5).forEach(t => { pi++; items.push(L.pre.build(`${L.id}-P${pi}`, t, { pre: true, skill: L.skill, r })); });
   }
-  const teach = L.teach(L.skill).map(it => ({ ...it, id: `${L.id}-${it.id}` }));
+  // teaching: its own random (the questions keep theirs); its facts are taken before the questions are picked, and it
+  // prefers facts no other version's worked example used, so each version teaches with its own numbers
+  const tr = rng(seedOf(`${L.id}-teach-v${v}`));
+  const teachPick = (pool, n = 1) => {
+    const order = [...shuffled(pool, tr)].filter(t => !usedFact.has(sameFact(t)));
+    const out = [];
+    for (const t of [...order.filter(t => !teachUsed.has(sameFact(t))), ...order.filter(t => teachUsed.has(sameFact(t)))]) {
+      if (out.length === n) break;
+      if (usedFact.has(sameFact(t))) continue;
+      out.push(t); markTaken(t); teachUsed.add(sameFact(t));
+    }
+    if (out.length < n) throw new Error(`${L.id} v${v}: teaching pool too small (${out.length} of ${n})`);
+    return out;
+  };
+  const ctx = { v, way: v % 2 ? 'A' : 'B', pick: teachPick, take: t => markTaken(t), used: t => usedFact.has(sameFact(t)) };
+  const teach = L.teach(L.skill, ctx).map(it => ({ ...it, id: `${L.id}-${it.id}` }));
   // teaching first: watch / step items, then the scored questions
   items.push(...teach);
   for (const part of L.parts) {
@@ -76,9 +93,9 @@ function buildVersion(L, v, lessonUsed) {
 }
 
 function writeLesson(L) {
-  const lessonUsed = new Set();
+  const lessonUsed = new Set(), teachUsed = new Set();
   const versions = [];
-  for (let v = 1; v <= N_VERSIONS; v++) versions.push(buildVersion(L, v, lessonUsed));
+  for (let v = 1; v <= N_VERSIONS; v++) versions.push(buildVersion(L, v, lessonUsed, teachUsed));
   const name = `LAB_${L.id}`;
   const scored = versions[0].filter(q => !q.kind).length;
   const header = `/* ═══════════════════════════════════════════════════════

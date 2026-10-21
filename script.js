@@ -325,7 +325,8 @@ function sendProgress(name) {
     body: JSON.stringify({
       action: 'submit', game: 'lab-progress', sessionId: 'labp-' + name, name,
       form: 'passed=' + done.join(',') + '|mastered=' + [...readMastered(name)].join(',') +
-        (typeof kindsText === 'function' ? '|kinds=' + kindsText(readKinds(name)) : ''),
+        (typeof kindsText === 'function' ? '|kinds=' + kindsText(readKinds(name)) : '') +
+        '|tries=' + triesText(getFormAttempts(name)),
       score: done.length, total: FORMS.length, percent: Math.round(done.length / FORMS.length * 100),
       done: false, elapsed: 0, tabSwitches: 0,
       wrongQuestions: factListText(weak),
@@ -371,6 +372,7 @@ async function loadHistory(name) {
     const m = /mastered=([^|]*)/.exec(p.form);
     if (m) m[1].split(',').filter(Boolean).forEach(k => mastered.add(k));
     if (typeof mergeKinds === 'function') mergeKinds(name, (/kinds=([^|]*)/.exec(p.form) || [])[1]);   // 🔎 kinds of reading mistakes
+    mergeTries(name, (/tries=([^|]*)/.exec(p.form) || [])[1]);   // tries on other Chromebooks (the version follows them)
     try { localStorage.setItem(MASTERED_KEY + ':' + name, JSON.stringify([...mastered])); } catch (e) {}
     // lessons passed on another device count here too
     const got = (/passed=([^|]*)/.exec(p.form) || [])[1] || '';
@@ -763,12 +765,29 @@ function addHighlightFallback(u, spans) {
 }
 
 /* ── ATTEMPT TRACKING ───────────────────────────────── */
+/* TRIES FOLLOW THE STUDENT (Marcos 10/21: count tries from the sheet, so try 2 gets the new way on any Chromebook).
+   TRIES_KEY:<name> = the total finished tries per lesson as best known on this device: this Chromebook's own, plus
+   what the lab-progress row brought back ("|tries=AS2:2,PV3:1"). A finished try = the tries it started with + 1. */
+const TRIES_KEY = 'lab_tries_v1';
+function readTries(name) {
+  try { const t = JSON.parse(localStorage.getItem(TRIES_KEY + ':' + name) || '{}'); return t && typeof t === 'object' ? t : {}; } catch (e) { return {}; }
+}
+function writeTries(name, t) { try { localStorage.setItem(TRIES_KEY + ':' + name, JSON.stringify(t)); } catch (e) {} }
+// the sheet's counts at sign-in: keep the larger per lesson
+function mergeTries(name, text) {
+  const t = readTries(name);
+  String(text || '').split(',').forEach(p => { const [id, n] = p.split(':'); if (LESSONS[id] && Number(n) > (t[id] || 0)) t[id] = Number(n); });
+  writeTries(name, t);
+}
+const triesText = counts => Object.entries(counts).filter(([, n]) => n > 0).map(([id, n]) => `${id}:${n}`).join(',');
 function getFormAttempts(name) {
   const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
   const counts = Object.fromEntries(FORMS.map(id => [id, 0]));
   scores.filter(s => s.name === name && s.done && !s.restored).forEach(s => {
     if (counts[s.form] !== undefined) counts[s.form]++;
   });
+  const t = readTries(name);
+  Object.keys(counts).forEach(id => { counts[id] = Math.max(counts[id], Number(t[id]) || 0); });
   return counts;
 }
 function testCompleted(name) { return false; }   // the Lab has no one-try test
@@ -1403,9 +1422,11 @@ const app = {
     this.kindsSeen     = {};   // reading: the kinds of mistakes made in this try (a second one = a repeat)
 
     // NEW NUMBERS ON A RETRY (Marcos 10/16): LAB_<id>_V holds the versions (data/*.js): try 1 → version 1,
-    // try 2 → version 2 … then round again. "Try" = finished tries on this device. The version rides in the start event.
+    // try 2 → version 2 … then round again. "Try" = finished tries, on any Chromebook (TRIES_KEY). Versions 2 and 4 teach
+    // with a new picture (Marcos 10/21). The version rides in the start event.
     const versions = window['LAB_' + form + '_V'];
     const triesDone = (reviewMode || SHARE_MODE) ? 0 : (getFormAttempts(this.studentName)[form] || 0);
+    this.triesAt = triesDone;
     this.version = Array.isArray(versions) && versions.length ? triesDone % versions.length : 0;
     let rawBank = [...(this.version ? versions[this.version] : window['LAB_' + form])];
     // 🎯 Show what you know: only on the first try at a lesson not yet passed (a retry goes straight to the lesson)
@@ -1515,6 +1536,7 @@ const app = {
     this.events = saved.events || [];
     this.startedAt = saved.startedAt || new Date().toISOString();
     this.version = saved.version || 0;           // the saved questions are already that version's
+    this.triesAt = saved.triesAt != null ? saved.triesAt : null;
     this.preRight = saved.preRight || 0; this.preTotal = saved.preTotal || 0; this.testedOut = false;
     this.heardStories = saved.heardStories || []; this.kindsSeen = saved.kindsSeen || {};
     this.twin = null; this.lastMissed = false;   // a twin is a bonus question — it is not carried across a restart
@@ -1539,6 +1561,7 @@ const app = {
       events: this.events,
       startedAt: this.startedAt,
       version:   this.version || 0,
+      triesAt:   this.triesAt != null ? this.triesAt : null,
       preRight:  this.preRight || 0,
       preTotal:  this.preTotal || 0,
       heardStories: this.heardStories || [],   // reading: passages already heard to the end
@@ -2133,6 +2156,10 @@ const app = {
         done:    true
       });
       localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+      // this try counts on every Chromebook: the tries it started with, plus this one
+      const t = readTries(this.studentName);
+      t[form] = Math.max(Number(t[form]) || 0, (this.triesAt != null ? this.triesAt : prevDone) + 1, prevDone + 1);
+      writeTries(this.studentName, t);
     }
 
     submitScoreFinal();

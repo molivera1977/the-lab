@@ -15,7 +15,8 @@
   const say = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
   /* ── NUMBER LINE ─────────────────────────────────────
-     cfg = { lo, hi, from, jumps, dir }  dir 1 = count on / up, −1 = count back */
+     cfg = { lo, hi, from, jumps, dir, split }  dir 1 = count on / up, −1 = count back
+     split (Make 10 on a number line): the hops up to that number in one color, the rest in another */
   function lineSVG(cfg) {
     const lo = cfg.lo, hi = cfg.hi, W = 700, pad = 26, by = cfg.step || 1;
     const step = (W - pad * 2) / (hi - lo);
@@ -36,12 +37,17 @@
     for (let i = 0; i < hops; i++) {
       const a = cfg.from + dir * i * by, b = a + dir * by;
       const mid = (x(a) + x(b)) / 2;
-      s += `<path d="M ${x(a)} ${y - 6} Q ${mid} ${y - 58} ${x(b)} ${y - 6}" class="lv-hop"/>`;
-      s += `<text x="${mid}" y="${y - 44}" class="lv-hop-n">${i + 1}</text>`;
+      const second = cfg.split != null && dir * (b - cfg.split) > 0;
+      s += `<path d="M ${x(a)} ${y - 6} Q ${mid} ${y - 58} ${x(b)} ${y - 6}" class="lv-hop${second ? ' lv-hop-b' : ''}"/>`;
+      // after a split the hops count again from 1, as the words do ("First hop to 10 … Hop 7 more")
+      const firstPart = cfg.split != null ? Math.abs(cfg.split - cfg.from) : hops;
+      s += `<text x="${mid}" y="${y - 44}" class="lv-hop-n${second ? ' lv-hop-n-b' : ''}">${i < firstPart ? i + 1 : i + 1 - firstPart}</text>`;
     }
+    if (hops && cfg.split != null) s += `<circle cx="${x(cfg.split)}" cy="${y}" r="11" class="lv-dot-split"/>`;
     if (hops) s += `<circle cx="${x(end)}" cy="${y}" r="9" class="lv-dot-end"/>`;
     const said = cfg.from == null ? `A number line from ${lo} to ${hi}.`
       : !hops ? `A number line from ${lo} to ${hi}. Start at ${cfg.from}.`
+      : cfg.split != null ? `A number line. Start at ${cfg.from}. ${say(Math.abs(cfg.split - cfg.from), 'hop')} to ${cfg.split}, then ${say(hops - Math.abs(cfg.split - cfg.from), 'hop')} more: you land on ${end}.`
       : by > 1 ? `A number line counting by ${by}s. ${say(hops, 'hop')} of ${by} from ${cfg.from}: you land on ${end}.`
       : `A number line. Start at ${cfg.from}. ${say(hops, 'hop')} ${dir > 0 ? 'up' : 'back'}, one for each number: you land on ${end}.`;
     // no hops: no room needed above the line; no start mark: none below it either
@@ -54,12 +60,24 @@
        a      dots in the first frame
        fill   (with no b) the empty boxes filled in green — the ten partner
        b      dots in a second frame
-       make10 (with b) move dots from the second frame until the first is full */
+       make10 (with b) move dots from the second frame until the first is full
+     cfg = { n, take }  n dots over one or two frames, the last `take` of them crossed out (take away)
+     cfg = { n, up }    n red dots, then green dots added up to `up` (count up to subtract) */
   function frameHTML(dots) {
     // dots: array of 10 class names ('' = empty box)
     return `<div class="lv-frame" aria-hidden="true">${dots.map(c => `<span class="lv-box">${c ? `<i class="lv-d ${c}"></i>` : ''}</span>`).join('')}</div>`;
   }
   function framesHTML(cfg) {
+    if (cfg.n != null) {
+      const total = cfg.up != null ? cfg.up : cfg.n;
+      const cls = i => (i >= total ? '' : cfg.up != null ? (i < cfg.n ? 'lv-red' : 'lv-green')
+        : (cfg.take && i >= cfg.n - cfg.take ? 'lv-red lv-gone' : 'lv-red'));
+      const frames = total > 10 ? 2 : 1;
+      const html = Array.from({ length: frames }, (_, f) => frameHTML(Array.from({ length: 10 }, (_, i) => cls(f * 10 + i)))).join('');
+      const said = cfg.up != null ? `Ten frames. ${say(cfg.n, 'red dot')}, and ${say(cfg.up - cfg.n, 'green dot')} added to make ${cfg.up}.`
+        : cfg.take ? `Ten frames with ${say(cfg.n, 'dot')}. ${cfg.take} of them are crossed out.` : `Ten frames with ${say(cfg.n, 'dot')}.`;
+      return `<div class="lv lv-frames" role="img" aria-label="${esc(said)}">${html}</div>`;
+    }
     const a = cfg.a;
     if (cfg.b == null) {
       const fill = cfg.fill || 0;

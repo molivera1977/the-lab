@@ -11,6 +11,9 @@
      5. the lesson's limits (Count On: one number 1–3; Make 10: a 7, 8 or 9 and a sum past 10; …)
      6. no picture under a question gives the answer away
      7. versions: 4 per lesson, the same kinds of item, new facts, no fact twice in one version
+     7b. retries teach again (Marcos 10/21) — in the lessons listed in RETRY_TEACH: each version's worked examples
+        use their own facts; no worked example's fact is a question in its version; versions 2 and 4 open with
+        "A new way" and show a different picture from versions 1 and 3; the counting lists in the teaching are right
      8. the right answer is not "usually" in one place when the choices are put in order
      9. no word card's example is a fact a lesson asks
     10. the student's-own-facts path: every fact up to 20 that a lesson takes is built and passes 1–6
@@ -108,6 +111,27 @@ function badCounts(text) {
     const start = +m[1], end = +m[2], list = nums(m[3]), n = +m[4];
     const want = Array.from({ length: end - start }, (_, i) => start + i + 1);
     if (JSON.stringify(list) !== JSON.stringify(want) || n !== want.length) bad.push(m[0]);
+  }
+  // the worked examples' wording: a start, then "Count on 3 more. Say 9, 10, 11." / "Count back 3. Say …" / "Count up to 15. Say …",
+  // or on a new picture: "Put 8 in your head … Count on as you touch: …", "Here are 12 dots … Say …", "Start with 8 red dots … Say …"
+  const teachStart = /(?:Start at (?:the (?:big|bigger|small) number, )?|Put (?:the big number, )?|Here are |Start with )(\d+)(?:,? in your head| dots| red dots)?\.([^]*?)(?:Say|Count on as you touch:) ([\d, ]+)\./g;
+  while ((m = teachStart.exec(text))) {
+    const start = +m[1], between = m[2], list = nums(m[3]);
+    if (/hop to 10/i.test(between)) continue;                   // checked below (Make 10 on a number line)
+    const dir = /Count back|Cross out|back as you/.test(between) ? -1 : 1;
+    const want = Array.from({ length: list.length }, (_, i) => start + dir * (i + 1));
+    const n = (/(?:Count (?:on|back) |Touch each of the |Cross out )(\d+)/.exec(between) || [])[1];
+    const upTo = (/(?:Count up to |until there are )(\d+)/.exec(between) || [])[1];
+    if (JSON.stringify(list) !== JSON.stringify(want) || (n && +n !== list.length) || (upTo && list[list.length - 1] !== +upTo)) bad.push(m[0].replace(/\s+/g, ' '));
+  }
+  // Make 10 on a number line: "Start at 9. First hop to 10. Say 10. That is 1 hop. 8 is 1 and 7. Hop 7 more. Say 11, …, 17."
+  const hop10 = /Start at (\d+)\.\s*(?:First h|H)op to 10\. Say ([\d, ]+)\. That is (\d+) hops?\.(?:\s*\d+ is \d+ and (\d+)\. Hop (\d+) more\. Say ([\d, ]+)\.)?/g;
+  while ((m = hop10.exec(text))) {
+    const start = +m[1], first = nums(m[2]), n = +m[3];
+    const want = Array.from({ length: 10 - start }, (_, i) => start + i + 1);
+    let ok = JSON.stringify(first) === JSON.stringify(want) && n === want.length;
+    if (m[4] != null) ok = ok && +m[4] === +m[5] && JSON.stringify(nums(m[6])) === JSON.stringify(Array.from({ length: +m[5] }, (_, i) => 11 + i));
+    if (!ok) bad.push(m[0].replace(/\s+/g, ' '));
   }
   const sk = /Count by (\d+)s, (\d+) times: ([\d, ]+)\./g;
   while ((m = sk.exec(text))) {
@@ -341,12 +365,53 @@ function checkTeach(q) {
 
 const factKey = q => { const R = readQ(q); return !R ? q.q : R.kind === 'compare' ? `compare:${R.a}/${R.b}` : ['value', 'expanded', 'bench', 'halfway', 'round', 'rename'].includes(R.kind) ? `${R.kind}:${q.q}` : R.op === '×' ? (R.kind === 'fact' ? `x${Math.min(R.a, R.b)}x${Math.max(R.a, R.b)}` : `${R.kind}${R.a}x${R.b}`) : R.kind === 'fact' ? (R.op === '+' ? `${Math.min(R.a, R.b)}+${Math.max(R.a, R.b)}` : `${R.a}-${R.b}`) : R.kind === 'partner' ? `p${R.p}` : `f${R.top}-${R.take}`; };
 
+/* ── 7b. retries teach again (Marcos 10/21: "a new worked example and a different explanation on the second try") ── */
+const RETRY_TEACH = ['AS1', 'AS2', 'AS3', 'AS4', 'AS5'];
+const isTeach = q => q.kind === 'watch' || q.kind === 'step';
+const isNewWay = q => q.kind === 'watch' && /-W0$/.test(q.id);
+// what a teaching item is about: the first "a + b" / "a − b" / "a × b" in its words — and every way a question could ask it
+function teachKeys(q) {
+  const m = /(\d+) ([+−×]) (\d+)/.exec(q.kind === 'watch' ? q.text : q.q);
+  if (!m) return [];
+  const [a, op, b] = [+m[1], m[2], +m[3]];
+  if (op === '×') return [`x${Math.min(a, b)}x${Math.max(a, b)}`];
+  if (op === '−') return [`${a}-${b}`, `f${a}-${b}`];
+  return [`${Math.min(a, b)}+${Math.max(a, b)}`, `f${a + b}-${a}`, `f${a + b}-${b}`, ...(a + b === 10 ? [`p${a}`, `p${b}`] : [])];
+}
+const picKind = q => Object.keys((q && q.pic) || {}).join('+');
+function checkRetryTeach(id, V, tshape) {
+  const out = [];
+  if (!RETRY_TEACH.includes(id)) {
+    V.forEach((v, vi) => { if (v.some(isNewWay)) out.push(`${id} v${vi + 1}: a "new way" screen in a lesson not rebuilt for retries`); });
+    return out;
+  }
+  const firstWatch = v => v.find(q => q.kind === 'watch' && !isNewWay(q));
+  V.forEach((v, vi) => {
+    const where = `${id} v${vi + 1}`, wayB = vi % 2 === 1, teach = v.filter(isTeach);
+    if (wayB && !isNewWay(teach[0])) out.push(`${where}: a retry on the new picture must open with "A new way"`);
+    if (!wayB && teach.some(isNewWay)) out.push(`${where}: "A new way" on a version that keeps the lesson's own picture`);
+    // no worked example is a question in its own version
+    const asked = new Set(v.filter(q => !isTeach(q)).map(factKey));
+    teach.forEach(q => teachKeys(q).forEach(k => { if (asked.has(k)) out.push(`${where} ${q.id}: the worked example's fact (${k}) is also a question in this version`); }));
+  });
+  // a new worked example every version, and the steps too
+  const fw = V.map(v => teachKeys(firstWatch(v) || {}).join('|'));
+  if (new Set(fw).size !== 4) out.push(`${id}: the worked examples repeat across versions (${fw.join(' / ')})`);
+  const stepsOf = v => v.filter(q => q.kind === 'step').map(q => q.q).join('|');
+  if (new Set(V.map(stepsOf)).size !== 4) out.push(`${id}: the steps repeat across versions`);
+  // the new picture: versions 2 and 4 show a different picture from 1 and 3, and each way keeps its own items
+  if (picKind(firstWatch(V[1])) === picKind(firstWatch(V[0]))) out.push(`${id}: version 2's worked example has the same picture as version 1 (${picKind(firstWatch(V[0]))})`);
+  if (tshape(V[2]) !== tshape(V[0]) || tshape(V[3]) !== tshape(V[1])) out.push(`${id}: a retry's teaching is not built like the same way's version 1 or 2`);
+  return out;
+}
+
 function checkLesson(id) {
   const out = [];
   const V = window[`LAB_${id}_V`];
   if (!Array.isArray(V) || V.length !== 4) return [`${id}: expected 4 versions, found ${V && V.length}`];
   if (V[0] !== window[`LAB_${id}`]) out.push(`${id}: version 1 is not LAB_${id}`);
-  const shape = v => v.map(q => q.kind || 'q').join(',');
+  const shape = v => v.filter(q => !isTeach(q)).map(q => q.kind || 'q').join(',');
+  const tshape = v => v.filter(isTeach).map(q => q.id.replace(/^[A-Z]+\d+-/, '')).join(',');
   const ranks = [0, 0, 0, 0];
   const v1facts = new Set(V[0].filter(q => !q.kind).map(factKey));
   V.forEach((v, vi) => {
@@ -376,6 +441,7 @@ function checkLesson(id) {
       if (fresh < scored.length * need) out.push(`${where}: only ${fresh} of ${scored.length} questions are new facts`);
     }
   });
+  out.push(...checkRetryTeach(id, V, tshape));
   const n = ranks.reduce((a, b) => a + b, 0);
   // Place value and rounding choices are named mistakes, which sit where they sit (the whole number is always bigger than
   // a digit's value; times 100's mistakes are mostly smaller), so those lessons may lean more than the facts lessons.
@@ -519,7 +585,15 @@ function plants() {
   const lv = [
     ['same fact twice in a version', () => { const v = vClone.map(x => x.slice()); const s = v[0].filter(q => !q.kind); v[0][v[0].indexOf(s[1])] = { ...s[0], id: s[1].id }; return v; }],
     ['a version repeats version 1', () => { const v = vClone.map(x => x.slice()); v[2] = v[0].map(q => ({ ...q })); return v; }],
-    ['three versions only', () => vClone.slice(0, 3)]
+    ['three versions only', () => vClone.slice(0, 3)],
+    // 7b. retries teach again
+    ['a retry teaches the same worked example as try 1', () => { const v = vClone.map(x => x.slice()); v[2] = v[2].map(q => (isTeach(q) ? { ...v[0].find(t => t.id.replace(/^AS1/, '') === q.id.replace(/^AS1/, '')) } : q)); return v; }],
+    ['try 2 without "A new way"', () => { const v = vClone.map(x => x.slice()); v[1] = v[1].filter(q => !isNewWay(q)); return v; }],
+    ['try 2 with the picture of try 1', () => { const v = vClone.map(x => x.slice()); const w = v[1].findIndex(q => q.kind === 'watch' && !isNewWay(q)); v[1][w] = { ...v[1][w], pic: v[0].find(q => q.kind === 'watch').pic }; return v; }],
+    ['a worked example asked as a question', () => {
+      const v = vClone.map(x => x.slice()); const q = v[0].find(x => !x.kind); const R = readQ(q); const w = v[0].findIndex(x => x.kind === 'watch');
+      v[0][w] = { ...v[0][w], text: `${R.a} + ${R.b} = ${R.a + R.b}.` }; return v; }],
+    ['a wrong counting list in a worked example', () => { const v = vClone.map(x => x.slice()); const w = v[0].findIndex(x => x.kind === 'watch'); v[0][w] = { ...v[0][w], text: v[0][w].text.replace(/Say (\d+), /, (s, n) => `Say ${+n + 1}, `) }; return v; }]
   ];
   lv.forEach(([name, make]) => {
     const v = make();
