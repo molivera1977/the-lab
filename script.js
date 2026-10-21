@@ -59,7 +59,9 @@ const STRANDS = [
   { id: 'as', icon: '➕', name: 'Adding and Subtracting to 20', lessons: ['AS1', 'AS2', 'AS3', 'AS4', 'AS5', 'AS6'] },
   { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: ['MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'], after: 'as' },
   { id: 'pv', icon: '🔢', name: 'Place Value', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8', 'PV9'], after: 'as' },
-  { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'], after: 'as' }
+  { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'], after: 'as' },
+  // Reading for Meaning (Marcos 10/20: "build a comprehension strand"): stands alone, no math gate
+  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3'] }
 ];
 const LESSONS = {
   AS1: { title: 'Count On to Add',                  icon: '🦘', facts: true },
@@ -89,8 +91,49 @@ const LESSONS = {
   RO3: { title: 'Round to the Nearest Ten',         icon: '🎯' },
   RO4: { title: 'Round to the Nearest Hundred',     icon: '🎯' },
   RO5: { title: 'Round to the Place Named',         icon: '🗺️' },
-  RO6: { title: 'Rounding Check',                   icon: '🏁', check: true, hints: false, pre: false }
+  RO6: { title: 'Rounding Check',                   icon: '🏁', check: true, hints: false, pre: false },
+  // the passage, the questions and the stories: data/rcN.js, read by reading.js; the screens: reading-ui.js
+  RC1: { title: 'Find the Proof',                   icon: '🔍', reading: true, hints: false },
+  RC2: { title: 'Part A and Part B',                icon: '🅰️', reading: true, hints: false },
+  RC3: { title: 'Click the Sentences',              icon: '👆', reading: true, hints: false }
 };
+/* WHAT EACH LESSON HELPS WITH, in the student's words (Marcos 10/20: "say the titles of each lesson so the kids know
+   what they are working on" · "I want them to know what they need help in"). A verb phrase: the plan says "You will
+   learn to …", a lesson button and the lesson's banner show it as a sentence. */
+const LESSON_GOALS = {
+  AS1: 'add by counting on from the bigger number', AS2: 'make a 10 to add numbers past 10',
+  AS3: 'see a teen number as 10 and some more', AS4: 'take away by counting back',
+  AS5: 'use an adding fact to subtract', AS6: 'show you know your adding and subtracting facts to 20',
+  MU1: 'see multiplying as equal groups', MU2: 'multiply with rows that are the same size',
+  MU3: 'skip count by 2s, 5s and 10s', MU4: 'learn the 2s, 5s and 10s facts', MU5: 'learn the 3s and 4s facts',
+  MU6: 'know what "times as many" means', MU7: 'show you know your times facts',
+  PV1: 'know what each digit is worth', PV2: 'write a number as the sum of its places',
+  PV3: 'read and write numbers in the thousands', PV4: 'tell which number is greater',
+  PV5: 'name a number in tens or hundreds', PV6: 'multiply a number by 10', PV7: 'multiply a number by 100',
+  PV8: 'multiply by numbers like 40 and 300', PV9: 'show what you know about place value',
+  RO1: 'find the two numbers a number is between', RO2: 'find the number halfway between',
+  RO3: 'round to the nearest ten', RO4: 'round to the nearest hundred', RO5: 'round to the place the question names',
+  RO6: 'show what you know about rounding',
+  RC1: 'find the ONE sentence that proves an idea', RC2: 'answer Part A, then prove your answer in Part B',
+  RC3: 'click the sentences that show an idea'
+};
+Object.entries(LESSON_GOALS).forEach(([id, g]) => { if (LESSONS[id]) LESSONS[id].goal = g; });
+const goalSentence = id => { const g = (LESSONS[id] || {}).goal || ''; return g ? g[0].toUpperCase() + g.slice(1) + '.' : ''; };
+// a skill as a student reads it (reading skill names are the test's; math ones already read plainly)
+const KID_SKILL = {
+  'Evidence selection': 'finding the sentence that proves an idea', 'Supporting detail': 'finding the sentence that proves your answer',
+  'Character inference': 'figuring out what a character is like', 'Drawing conclusions': 'putting clues together',
+  'Character feelings': 'figuring out how a character feels'
+};
+const kidSkill = skill => { const base = String(skill || '').split(' · ')[0].replace(/ \(check\)$/, '').trim(); return KID_SKILL[base] || base; };
+// "RC2-Q01.B" → "Question 1, Part B" (a student never sees a code)
+function questionLabel(id) {
+  const m = /-Q0*(\d+)(?:\.([AB]))?$/.exec(id || '');
+  if (m) return `Question ${m[1]}${m[2] ? ', Part ' + m[2] : ''}`;
+  if (/-M\d+$/.test(id || '')) return 'One you missed before';
+  return 'A question';
+}
+
 // WHO IS ON A PLAN is not written in this file (the site's code is public). A student is on a plan when the
 // sheet's lab-seed tab has a row for them, form "plan=as,mu,pv,ro" (loadHistory fills PLANS at sign-in).
 // Everyone else who signs in sees the same lessons as practice.
@@ -108,7 +151,9 @@ const keepsOrder = form => true;
 const autoHint = form => !!LESSONS[form] && LESSONS[form].hints !== false;
 /* Only questions count toward the score. 'watch', 'step' and 'pre' (Show what you know) do not. */
 const isScored = q => !!q && !q.kind;
-const scoredCount = bank => (bank || []).filter(isScored).length;
+// Points, not questions: a reading Part A + Part B is worth 2 (like the test); every math question is 1
+const pointsOfQ = q => (q.type === 'ebsr' ? 2 : q.type === 'rad' ? 0 : 1);
+const scoredCount = bank => (bank || []).reduce((n, q) => n + (isScored(q) ? pointsOfQ(q) : 0), 0);
 // Word help (a button per math word) — on in the lessons, off on the facts check
 const wordHelp = form => !!LESSONS[form] && LESSONS[form].hints !== false;
 const TWINS = {};
@@ -279,7 +324,8 @@ function sendProgress(name) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'submit', game: 'lab-progress', sessionId: 'labp-' + name, name,
-      form: 'passed=' + done.join(',') + '|mastered=' + [...readMastered(name)].join(','),
+      form: 'passed=' + done.join(',') + '|mastered=' + [...readMastered(name)].join(',') +
+        (typeof kindsText === 'function' ? '|kinds=' + kindsText(readKinds(name)) : ''),
       score: done.length, total: FORMS.length, percent: Math.round(done.length / FORMS.length * 100),
       done: false, elapsed: 0, tabSwitches: 0,
       wrongQuestions: factListText(weak),
@@ -324,6 +370,7 @@ async function loadHistory(name) {
   if (p && p.form) {
     const m = /mastered=([^|]*)/.exec(p.form);
     if (m) m[1].split(',').filter(Boolean).forEach(k => mastered.add(k));
+    if (typeof mergeKinds === 'function') mergeKinds(name, (/kinds=([^|]*)/.exec(p.form) || [])[1]);   // 🔎 kinds of reading mistakes
     try { localStorage.setItem(MASTERED_KEY + ':' + name, JSON.stringify([...mastered])); } catch (e) {}
     // lessons passed on another device count here too
     const got = (/passed=([^|]*)/.exec(p.form) || [])[1] || '';
@@ -335,6 +382,7 @@ async function loadHistory(name) {
   }
   const weak = readWeak(name);
   if (s) mergeWeak(weak, parseFactList(s.wrongQuestions, 'facts'), mastered);
+  if (s && typeof notePractice === 'function') notePractice(name, s.wrongQuestions);   // 🔎 their reading-practice misses
   if (p) mergeWeak(weak, parseFactList(p.wrongQuestions, 'lab'), mastered);
   writeWeak(name, weak);
   return true;
@@ -687,8 +735,10 @@ function setPartBanner(form) {
   const L = LESSONS[form], st = strandOf(form);
   if (!el || !L) return;
   el.className = 'part-banner pb-lab pb-' + (st ? st.id : 'as');
-  el.innerHTML = `<span aria-hidden="true">${L.icon}</span> ${form} · ${L.title}` +
-    (reviewMode ? ' <span class="pb-teacher">(teacher view)</span>' : '');
+  // the lesson's name, not its code (Marcos 10/20: "say the titles of each lesson so the kids know what they are working on")
+  el.innerHTML = `<span aria-hidden="true">${L.icon}</span> ${L.title}` +
+    (reviewMode ? ' <span class="pb-teacher">(teacher view)</span>' : '') +
+    (L.goal ? `<span class="pb-goal">You are learning to ${L.goal}.</span>` : '');
 }
 
 /* ── HIGHLIGHT FALLBACK ─────────────────────────────
@@ -781,9 +831,33 @@ function lessonWait(name, form) {
     return `Pass ${first ? first.name : 'the strand before'} first`;
   }
   const i = st.lessons.indexOf(form);
-  if (i > 0 && !passed(name, st.lessons[i - 1])) return `Pass ${st.lessons[i - 1]} first`;
+  if (i > 0 && !passed(name, st.lessons[i - 1])) return `Pass ${LESSONS[st.lessons[i - 1]].title} first`;
   return '';
 }
+
+/* ── THE ROUTE (Marcos 10/20: "Will the lessons push the kids along the route?" → full flow, and math and reading
+   TAKE TURNS). The next lesson = the first open, not-yet-passed lesson of the student's plan, strand by strand in the
+   plan row's order. A plan with math AND reading alternates: after a math lesson, the next reading lesson; after a
+   reading lesson, the next math lesson (the first one in plan order when the student has done neither yet). A lesson
+   missed is still unpassed, so it comes back on its turn. The plan's ▶ Continue button and the end screen's Next both
+   follow this. */
+const isReadingStrand = st => !!st && st.id === 'rc';
+function lastLessonDone(name, ids) {
+  const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
+  const mine = scores.filter(s => s.name === name && s.done && !s.restored && ids.includes(s.form));
+  return mine.length ? mine[mine.length - 1].form : null;
+}
+function nextStep(name, strands) {
+  const open = st => st.lessons.find(id => !passed(name, id) && !lessonWait(name, id)) || null;
+  const firstOpen = list => list.map(open).find(Boolean) || null;
+  const math = strands.filter(st => !isReadingStrand(st)), read = strands.filter(isReadingStrand);
+  const nm = firstOpen(math), nr = firstOpen(read);
+  if (!nm || !nr) return nm || nr;
+  const last = lastLessonDone(name, strands.flatMap(st => st.lessons));
+  if (!last) return isReadingStrand(strands[0]) ? nr : nm;      // nothing done yet: the plan row's first strand
+  return LESSONS[last] && LESSONS[last].reading ? nm : nr;      // take turns
+}
+const planStrands = name => (planFor(name) || []).map(id => STRANDS.find(st => st.id === id)).filter(Boolean);
 
 /* A lesson that is not open yet shows a gray locked button that still explains why. */
 function setFormButton(form, label, sub, waiting, el) {
@@ -824,13 +898,24 @@ function applyFormLocks(name, state) {
   const strands = plan.map(id => STRANDS.find(st => st.id === id)).filter(Boolean);
   const listed = !!PLANS[name] || !!cachedPlan(name);
   const first = getFirstName(name);
-  const nextUp = FORMS.find(id => !passed(name, id) && !lessonWait(name, id));
+  // the next lesson comes from the strands this student is shown (a reading-only plan never points at math),
+  // math and reading taking turns (nextStep)
+  const nextUp = nextStep(name, strands);
   box.innerHTML = '';
   const hi = document.createElement('div');
   hi.className = 'dir-section plan-hi-row';
   hi.innerHTML = `<div class="dir-row"><button class="speak-btn" onclick="speakDir(this)">🔊</button><h3 style="margin:0;">🧪 ${listed ? `${first}'s Plan` : 'Lab Practice'}</h3></div>` +
-    `<p class="dir-text">${nextUp ? `Your next lesson is ${nextUp}, ${LESSONS[nextUp].title}. Tap it to start.` : 'You passed every lesson that is open. Great work!'}</p>`;
+    `<p class="dir-text">${nextUp ? `Your next lesson is ${LESSONS[nextUp].title}. You will learn to ${LESSONS[nextUp].goal}. Tap it to start.` : 'You passed every lesson that is open. Great work!'}</p>`;
   box.appendChild(hi);
+  // ▶ CONTINUE: the next lesson on the route, one big button at the top (the list below stays for a redo)
+  if (nextUp) {
+    const go = document.createElement('button');
+    go.className = 'start-btn continue-btn';
+    go.id = 'btn-continue';
+    go.innerHTML = `▶ Continue: ${LESSONS[nextUp].title}<span class="form-btn-sub">${goalSentence(nextUp)}</span>`;
+    go.onclick = () => app.attemptStart(nextUp);
+    box.appendChild(go);
+  }
   strands.forEach(st => {
     const card = document.createElement('div');
     card.className = 'step-card strand-card strand-' + st.id;
@@ -852,10 +937,12 @@ function applyFormLocks(name, state) {
       grid.appendChild(b);
       const best = bestScore(name, id);
       const n = scoredCount(window['LAB_' + id]);
-      const sub = !best ? `${id === nextUp ? '⭐ Do this next · ' : ''}${n} questions · get ${needFor(id)} right`
+      const rd = !!L.reading;   // reading counts points (Part A + Part B = 2) and a retry gets new stories
+      const goal = L.goal ? `<span class="lesson-goal">${goalSentence(id)}</span>` : '';
+      const sub = !best ? `${id === nextUp ? '⭐ Do this next · ' : ''}${n} ${rd ? 'points' : 'questions'} · get ${needFor(id)} right`
         : passed(name, id) ? (best.restored ? '✅ Passed' : `✅ Passed · best ${best.score} of ${best.total}`)
-        : `🔁 Best ${best.score} of ${best.total} · get ${Math.round(passPct(id))}% · new numbers`;
-      setFormButton(id, `${L.icon} ${id} · ${L.title}`, sub, lessonWait(name, id), b);
+        : `🔁 Best ${best.score} of ${best.total} · get ${Math.round(passPct(id))}% · ${rd ? 'new stories' : 'new numbers'}`;
+      setFormButton(id, `${L.icon} ${L.title}`, goal + sub, lessonWait(name, id), b);
     });
     card.appendChild(grid);
     box.appendChild(card);
@@ -1089,6 +1176,7 @@ const app = {
     ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
+    if (id !== 'quiz-screen') document.body.classList.remove('story-active');   // 🔎 the passage layout ends with the lesson
     window.scrollTo(0, 0);   // every new screen starts at the top
     window.speechSynthesis.cancel();
   },
@@ -1251,7 +1339,7 @@ const app = {
       this.showPinModal(
         '📘 Not Yet',
         `${getFirstName(this.studentName)}: ${why.charAt(0).toLowerCase() + why.slice(1)}. ` +
-        `Teachers: enter your PIN to let this student start ${form} now.`,
+        `Teachers: enter your PIN to let this student start ${FORM_NAMES[form]} now.`,
         () => this.startSession(form)
       );
       return;
@@ -1306,6 +1394,7 @@ const app = {
 
   _autoAnswer() {
     const q = this.currentQ();
+    if (typeof readingAutoAnswer === 'function' && readingAutoAnswer(this, q)) return;   // 🔎 reading-ui.js
     document.querySelectorAll('.answer-btn').forEach(btn => {
       if (btn.dataset.answer === q.answer) {
         this._selectChoice(q.answer, btn);
@@ -1365,6 +1454,8 @@ const app = {
     this.testedOut     = false;
     this.preRight      = 0;
     this.preTotal      = 0;
+    this.heardStories  = [];   // reading: the passages heard to the end in this try
+    this.kindsSeen     = {};   // reading: the kinds of mistakes made in this try (a second one = a repeat)
 
     // NEW NUMBERS ON A RETRY (Marcos 10/16): LAB_<id>_V holds the versions (data/*.js): try 1 → version 1,
     // try 2 → version 2 … then round again. "Try" = finished tries on this device. The version rides in the start event.
@@ -1412,8 +1503,14 @@ const app = {
       rawBank.splice(nPre, 0, { id: `${form}-GO`, kind: 'watch', title: "Now let's learn it", skill: 'Lab step',
         text: 'Some of those were tricky. That is OK.\nNow watch and listen.\nThen you will try it one step at a time.' });
     }
+    this.readingStart = typeof readingExtras === 'function' ? readingExtras(this, form, rawBank) : null;   // 🔎 their practice miss + a warning about their most common kind of mistake
 
     const shuffleQ = q => {
+      if (q.type === 'hot') return { ...q };     // click sentences stay in the passage's order
+      if (q.type === 'ebsr') {
+        const mix = part => ({ ...part, choices: [...part.choices].sort(() => Math.random() - 0.5) });
+        return { ...q, partA: mix(q.partA), partB: mix(q.partB) };
+      }
       if (!q.choices) return { ...q };           // a worked example has no choices
       const shuffled = [...q.choices].sort(() => Math.random() - 0.5);
       return { ...q, choices: shuffled };
@@ -1431,7 +1528,7 @@ const app = {
     }
 
     this.show('quiz-screen');
-    logEvent('start', { v: this.version + 1, mine: minePre.length + mineQ.length, ...(example ? { ex: recKey(recordOf(example)) } : {}) });
+    logEvent('start', { v: this.version + 1, mine: minePre.length + mineQ.length, ...(example ? { ex: recKey(recordOf(example)) } : {}), ...(this.readingStart || {}) });
     this.startTimer();
     this.renderQuestion();
     if (!reviewMode && !SHARE_MODE) submitScorePartial();   // Mr. O sees who is in which lesson right away
@@ -1474,6 +1571,7 @@ const app = {
     this.startedAt = saved.startedAt || new Date().toISOString();
     this.version = saved.version || 0;           // the saved questions are already that version's
     this.preRight = saved.preRight || 0; this.preTotal = saved.preTotal || 0; this.testedOut = false;
+    this.heardStories = saved.heardStories || []; this.kindsSeen = saved.kindsSeen || {};
     this.twin = null; this.lastMissed = false;   // a twin is a bonus question — it is not carried across a restart
     logEvent('resume');
     this.show('quiz-screen');
@@ -1497,7 +1595,9 @@ const app = {
       startedAt: this.startedAt,
       version:   this.version || 0,
       preRight:  this.preRight || 0,
-      preTotal:  this.preTotal || 0
+      preTotal:  this.preTotal || 0,
+      heardStories: this.heardStories || [],   // reading: passages already heard to the end
+      kindsSeen:    this.kindsSeen || {}
     }));
   },
 
@@ -1631,6 +1731,8 @@ const app = {
     // ⭐ one of this student's own missed facts
     const mineNote = document.getElementById('mine-note');
     if (mineNote) mineNote.classList.toggle('hidden', !q.mine);
+    // 🔎 a reading question: the passage rides beside it (reading-ui.js)
+    if (typeof readingRender === 'function' && readingRender(this, q, total)) return;
     if (q.kind === 'watch') { this._renderWatch(q, total); return; }
     document.getElementById('speak-q-btn').classList.remove('hidden');
     // "Try one like it" strip: shown only while a twin question is up
@@ -1926,6 +2028,7 @@ const app = {
 
   /* ── CONFIRM ANSWER ── */
   confirmAnswer() {
+    if (typeof readingConfirm === 'function' && readingConfirm(this, this.currentQ())) return;   // 🔎 reading-ui.js
     if (!this.selectedAnswer) return;
     this.questionLocked = true;
 
@@ -2092,25 +2195,41 @@ const app = {
 
     const pass = pct >= passPct(form);
     const need = Math.ceil(passPct(form) / 100 * total);
-    const st = strandOf(form);
-    const nextId = st ? st.lessons[st.lessons.indexOf(form) + 1] : null;
+    // the next lesson on the route (it may be in another strand: math and reading take turns)
+    const nextId = nextStep(this.studentName, planStrands(this.studentName));
     const msg = this.testedOut ? '🎯 You already know this! On to the next lesson.'
-      : pass ? (wasPassed ? '✅ Passed again. Nice practice!' : `✅ You passed ${form}!${nextId ? ' The next lesson is open.' : ''}`)
-      : wasPassed ? `This try: ${score} of ${total}. You already passed ${form}, so it stays passed. Practice it again, or go on.`
-      : `Get ${need} of ${total} to pass. Do it again — you will get new numbers.`;
+      : pass ? (wasPassed ? '✅ Passed again. Nice practice!' : `✅ You passed ${FORM_NAMES[form]}!${nextId ? ' The next lesson is open.' : ''}`)
+      : wasPassed ? `This try: ${score} of ${total}. You already passed ${FORM_NAMES[form]}, so it stays passed. Practice it again, or go on.`
+      : `Get ${need} of ${total} to pass. Do it again — you will get ${LESSONS[form] && LESSONS[form].reading ? 'new stories' : 'new numbers'}.`;
 
     this.show('end-screen');
 
     const reviewNextBtn = document.getElementById('review-next-btn');
     if (reviewNextBtn) reviewNextBtn.classList.toggle('hidden', !reviewMode);
     document.getElementById('end-title').textContent = this.testedOut
-      ? `🎯 ${form} · ${FORM_NAMES[form]} — Skipped`
-      : `${pass ? '🎉' : '💪'} ${form} · ${FORM_NAMES[form]} — ${pass ? 'Passed' : 'Not yet'}`;
+      ? `🎯 ${FORM_NAMES[form]} — Skipped`
+      : `${pass ? '🎉' : '💪'} ${FORM_NAMES[form]} — ${pass ? 'Passed' : 'Not yet'}`;
 
     document.getElementById('final-score-sub').textContent = SHARE_MODE
       ? `${FORM_NAMES[form]} · Guest view — this score was not saved`
-      : `${formLabel(attemptNum)}${attemptNum > 1 ? ' · Attempt ' + attemptNum : ''} · ${this.studentName}`;
+      : `${FORM_NAMES[form]}${this.testedOut ? ' · Skipped' : ''}${attemptNum > 1 ? ' · Try ' + attemptNum : ''} · ${this.studentName}`;
     document.getElementById('final-msg').textContent = msg;
+    // WHAT TO KEEP PRACTICING (Marcos 10/20: "I want them to know what they need help in"): what this lesson
+    // works on, the skills this try missed, and (reading) the kind of mistake made most
+    const pbox = document.getElementById('practice-box');
+    if (pbox) {
+      const counts = {};
+      this.missedQuestions.forEach(m => { const k = kidSkill(m.skill); if (k) counts[k] = (counts[k] || 0) + 1; });
+      const lines = [];
+      if (LESSONS[form] && LESSONS[form].goal) lines.push(`This lesson helps you ${LESSONS[form].goal}.`);
+      const skills = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (skills.length) lines.push(`Keep practicing ${skills.map(([k, n]) => `${k} (${n} missed)`).join(', ')}.`);
+      else if (!this.testedOut) lines.push('You did not miss any questions. Great work!');
+      const kw = typeof kindTip === 'function' ? kindTip(this.kindsSeen) : '';
+      if (kw) lines.push(kw);
+      document.getElementById('practice-text').textContent = lines.join(' ');
+      pbox.classList.toggle('hidden', !lines.length);
+    }
 
     const pctEl = document.getElementById('final-percent');
     pctEl.innerHTML = `${score}/${total}<br><small style="font-size:0.5em;color:${pass ? 'var(--correct)' : 'var(--danger)'};">${pct}% · ${pass ? 'Passed' : `${Math.round(passPct(form))}% passes`}</small>`;
@@ -2121,11 +2240,11 @@ const app = {
     const redoBtn = document.getElementById('end-redo-btn');
     const backBtn = document.getElementById('end-again-btn');
     // Next Lesson whenever the next lesson is open (after a pass, or after a practice redo of a lesson passed before)
-    const canNext = !reviewMode && nextId && !lessonWait(this.studentName, nextId);
+    const canNext = !reviewMode && nextId && nextId !== form && !lessonWait(this.studentName, nextId);
     if (nextBtn) {
       nextBtn.classList.toggle('hidden', !canNext);
       if (canNext) {
-        nextBtn.innerHTML = `➡️ Next Lesson: ${nextId} · ${FORM_NAMES[nextId]}<span class="form-btn-sub">Start it now. You stay signed in.</span>`;
+        nextBtn.innerHTML = `➡️ Next Lesson: ${FORM_NAMES[nextId]}<span class="form-btn-sub">Start it now. You stay signed in.</span>`;
         nextBtn.onclick = () => { stopConfetti(); this.attemptStart(nextId); };
       }
     }
@@ -2141,7 +2260,7 @@ const app = {
       document.getElementById('missed-items').innerHTML =
         this.missedQuestions.map(m =>
           `<div class="missed-item">
-            <div class="mi-label">${m.id}${m.mine ? ' · ⭐ missed before' : ''}${m.repeat ? ' · same answer again' : ''}</div>
+            <div class="mi-label">${questionLabel(m.id)} · ${kidSkill(m.skill)}${m.mine ? ' · ⭐ missed before' : ''}${m.repeat ? ' · same mistake again' : ''}</div>
             <div style="margin:3px 0;">${formatMathText(m.q)}</div>
             <div>Your answer: <span style="color:var(--danger);">${formatMathText(m.yourAnswer)}</span> &nbsp; ✅ Correct: <strong style="color:var(--correct);">${formatMathText(m.correct)}</strong></div>
             ${m.explanation ? `<div class="mi-why">💡 ${formatMathText(m.explanation)}</div>` : ''}
@@ -2194,6 +2313,8 @@ const app = {
 
   speakQuestion() {
     const qBtn = document.getElementById('speak-q-btn');
+    const rq = this.currentQ();
+    if (rq && rq.story && typeof speakEl === 'function') { speakEl(qBtn, document.getElementById('question-text')); return; }
     if (activeSpeakBtn === qBtn) { stopActiveSpeech(); return; }
     stopActiveSpeech();
     activeSpeakBtn = qBtn;

@@ -909,3 +909,142 @@ button.answer-btn.incorrect { background: #f8d7da; border-color: #dc3545; color:
 .lv-num.lv-bench { fill: #1f618d; font-size: 20px; }
 .lv-num.lv-half, .lv-tag.lv-half { fill: #b9770e; }
 .lv-round-arrow { stroke: #27ae60; stroke-width: 4; }
+
+/* ═══════════════════════════════════════════════════════
+   🔎 READING FOR MEANING — the passage beside the question (reading-ui.js)
+   Copied from the Read Literary review's story panel and item styles, at the Lab's kid
+   text size (1rem = 20px here; nothing a student reads under 16px).
+═══════════════════════════════════════════════════════ */
+.story-panel { display: none; }
+.quiz-body { display: block; }
+body.story-active .quiz-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+body.story-active .story-panel { display: block; }
+body.story-active .container { max-width: 1240px; }
+.story-panel { position: sticky; top: 14px; }
+.story-panel-header {
+  background: var(--primary); color: #fff; font-size: 0.95rem; font-weight: bold;
+  padding: 8px 12px; border-radius: 12px 12px 0 0;
+}
+.story-scroll {
+  background: #f0fdfa; border: 2px solid #b7ece4; border-top: none;
+  border-radius: 0 0 12px 12px; padding: 14px 16px;
+  max-height: calc(100vh - 150px); overflow-y: auto;
+}
+.story-para {
+  display: flex; gap: 10px; margin: 0 0 12px;
+  line-height: 1.8; font-size: 1rem; color: #2f2a3a;
+  border-radius: 10px; padding: 4px;
+}
+.story-para:last-child { margin-bottom: 0; }
+.story-para.para-focus { background: #fff8d6; box-shadow: 0 0 0 3px #f4c430; }
+.para-speak-btn { font-size: 0.9rem; min-width: 38px; padding: 3px 6px; align-self: flex-start; background: #fff; }
+.para-num {
+  flex: 0 0 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff;
+  font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; justify-content: center;
+  margin-top: 2px; flex-shrink: 0;
+}
+.para-text { flex: 1; min-width: 0; }
+.st-sent.lit { background: #ffe9a8; box-shadow: 0 2px 0 #f4c430; border-radius: 4px; }
+
+@media (max-width: 900px) {
+  body.story-active .quiz-body { grid-template-columns: 1fr; }
+  .story-panel { position: static; margin-bottom: 16px; }
+  .story-scroll { max-height: 46vh; }
+}
+
+/* the passage the first time it shows */
+.feedback-box.story-gate { display: block; }
+.story-go-btn { display: block; margin: 14px 0 0; }
+
+/* Part A + Part B */
+.options-grid.ebsr-item { gap: 18px; }
+.ebsr-part { border: 3px solid #c3efe8; border-radius: 16px; padding: 14px 16px 16px; background: #fdfdfb; }
+.ebsr-label {
+  display: inline-block; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px;
+  color: white; border-radius: 6px; padding: 3px 12px; margin-bottom: 10px;
+}
+.ebsr-label.part-A { background: #0f766e; }
+.ebsr-label.part-B { background: #0e7490; }
+.ebsr-q-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.ebsr-q { flex: 1; font-size: var(--fs); line-height: 1.7; color: #2c3e50; font-weight: bold; }
+.ebsr-choices { display: grid; gap: 10px; }
+
+/* choose two (check boxes) */
+.ms-box {
+  display: inline-block; width: 22px; height: 22px; border: 3px solid #94a3b8; border-radius: 5px;
+  background: #fff; vertical-align: -4px; margin-right: 8px; position: relative;
+}
+button.answer-btn.multi-choice.selected .ms-box { border-color: #f57f17; background: #f9a825; }
+button.answer-btn.multi-choice.selected .ms-box::after,
+button.answer-btn.multi-choice.correct .ms-box::after { content: "✓"; position: absolute; left: 2px; top: -6px; font-size: 18px; font-weight: bold; color: #fff; }
+button.answer-btn.multi-choice.correct .ms-box { border-color: #28a745; background: #28a745; }
+button.answer-btn.multi-choice.incorrect .ms-box { border-color: #dc3545; background: #dc3545; }
+.multi-count {
+  justify-self: end; font-size: 0.85rem; font-weight: bold; color: #475569; background: #f1f5f9;
+  border-radius: 999px; padding: 3px 12px; margin-top: 2px;
+}
+.multi-count.done { color: #0f766e; background: #ccfbf1; }
+
+/* click the sentence(s) */
+.ht-hint { display: flex; gap: 10px; align-items: flex-start; font-size: 0.9rem; color: #334155; background: #f0fdfa; border: 2px dashed #5eead4; border-radius: 10px; padding: 6px 12px; }
+.ht-sent { cursor: pointer; border-radius: 6px; transition: background 0.15s, box-shadow 0.15s; -webkit-tap-highlight-color: transparent; }
+.ht-sent:focus-visible { outline: 3px solid #0d9488; outline-offset: 2px; }
+.ht-sent.locked-choice { cursor: not-allowed; }
+.ht-para-row { display: flex; gap: 10px; align-items: flex-start; }
+.ht-para {
+  flex: 1; min-width: 0; margin: 0; font-size: 1rem; line-height: 2.1; color: #2f2a3a;
+  background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;
+}
+.ht-para .ht-sent { padding: 2px 1px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.ht-para .ht-sent:not(.locked-choice):hover { background: #e6fffa; box-shadow: 0 2px 0 #5eead4; }
+.ht-para .ht-sent.selected  { background: #fff59d; box-shadow: 0 2px 0 #f9a825; }
+.ht-para .ht-sent.correct   { background: #d4edda; box-shadow: 0 2px 0 #28a745; }
+.ht-para .ht-sent.incorrect { background: #f8d7da; box-shadow: 0 2px 0 #dc3545; text-decoration: line-through; text-decoration-color: #dc3545; }
+.ht-list { display: grid; gap: 12px; }
+.ht-list-sent {
+  flex: 1; display: block; background: #fff; border: 3px solid #e0e0e0; border-left: 6px solid #cbd5e1;
+  border-radius: 12px; padding: 11px 14px; font-size: 1rem; line-height: 1.6; color: #2f2a3a; box-shadow: 0 4px 0 #e0e0e0;
+}
+.ht-list-sent:not(.locked-choice):hover { background: #f0fdfa; border-color: var(--primary); }
+.ht-list-sent.locked-choice { background: var(--locked-bg); }
+.ht-list-sent.selected  { background: #fff9c4; border-color: #f9a825; border-left-color: #f57f17; box-shadow: 0 4px 0 #f57f17; }
+.ht-list-sent.correct   { background: #d4edda; border-color: #28a745; box-shadow: 0 4px 0 #28a745; }
+.ht-list-sent.incorrect { background: #f8d7da; border-color: #dc3545; box-shadow: 0 4px 0 #dc3545; }
+
+/* feedback: one part right, one wrong */
+.feedback-box.partial { display: block; background: #fff8e1; border-color: #f4c430; color: #5d4500; }
+.rc-fb-part { margin: 8px 0 0; }
+.rc-warn { background: #fff3cd; border: 2px solid #ffc107; color: #7a5a00; border-radius: 10px; padding: 8px 14px; font-size: 0.9rem; font-weight: bold; }
+
+/* A passage needs the screen (1366 x 650 Chromebook): while one shows, the page title goes, the lesson
+   banner, badges and clock get small, and the container loses its top margin. The lesson name stays on
+   screen in the small banner, so Mr. O can still see it from across the room. */
+body.story-active .container { margin-top: 0.5rem; padding-top: 1rem; }
+body.story-active .container > h1,
+body.story-active .container > .welcome-sub { display: none; }
+body.story-active .part-banner { font-size: 0.95rem; padding: 4px 12px; margin-bottom: 6px; }
+body.story-active .q-badge { margin-bottom: 4px; }
+body.story-active .timer-row { margin: 0 0 6px; }
+body.story-active .timer-display { font-size: 0.9rem; padding: 2px 10px; }
+body.story-active .story-scroll { max-height: calc(100vh - 170px); }
+body.story-active .streak-bar:empty { display: none; }
+body.story-active .timer-row { margin: 0 0 4px; }
+body.story-active .progress-bar { margin-bottom: 6px; }
+.gate-lines { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
+.gate-lines .choice-speak-btn { flex: 0 0 auto; }
+
+/* What each lesson helps with (Marcos 10/20: "I want them to know what they need help in") */
+.part-banner { flex-wrap: wrap; }
+.part-banner .pb-goal { flex-basis: 100%; text-align: center; font-size: 0.85rem; font-weight: 700; opacity: 0.95; }
+body.story-active .part-banner .pb-goal { font-size: 0.8rem; }
+.lesson-goal { display: block; font-size: 0.85rem; font-weight: 700; margin: 2px 0 2px; }
+.practice-box { margin: 12px 0; }
+
+/* ▶ Continue — the next lesson on the route, at the top of the plan (Marcos 10/20: full flow) */
+.continue-btn { display: block; width: 100%; margin: 6px 0 14px; font-size: 1.15rem; background: #1f5fa8; box-shadow: 0 5px 0 #154377; }
+.continue-btn .form-btn-sub { font-size: 0.85rem; }

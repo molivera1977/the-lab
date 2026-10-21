@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>The Lab: Back to Basics</title>
-  <link rel="stylesheet" href="style.css?v=lab5" />
+  <link rel="stylesheet" href="style.css?v=lab8" />
 </head>
 <body>
 <canvas id="confetti-canvas"></canvas>
@@ -84,6 +84,7 @@
           Get all 5 right and you skip that lesson. If not, you watch, try it step by step, then do it yourself.
           Get <strong>9 of 10</strong> right to pass a lesson. Then the next lesson opens.
           The Facts Check is 20 questions: get <strong>18 of 20</strong>. You can do a lesson again any time. You get new numbers.
+          In Reading for Meaning, get <strong>6 of 8</strong> to pass. A retry gets new stories.
         </div>
         <p class="score-link"><button class="link-btn" onclick="app.showScores()">📊 My Scores</button></p>
       </div>
@@ -246,6 +247,10 @@
 
     <div class="reading-timer-bar hidden" id="reading-timer-bar"></div>
 
+    <!-- 🔎 Reading for Meaning: the passage rides on the left beside the question (empty on math lessons) -->
+    <div class="quiz-body">
+    <aside class="story-panel" id="quiz-story-panel" aria-label="The passage"></aside>
+    <div class="quiz-main">
     <div class="question-header">
       <button class="speak-btn" id="speak-q-btn" onclick="app.speakQuestion()" title="Read question aloud">🔊</button>
       <h2 id="question-text"></h2>
@@ -270,6 +275,8 @@
       <button id="confirm-btn" class="action-btn hidden" onclick="app.confirmAnswer()">✅ That's My Answer!</button>
       <button id="next-btn"    class="action-btn hidden" onclick="app.nextQuestion()">Next ➡️</button>
     </div>
+    </div><!-- /.quiz-main -->
+    </div><!-- /.quiz-body -->
   </div>
 
   <!-- ══════════════════════════════════════════
@@ -280,6 +287,11 @@
     <p id="final-score-sub" style="text-align:center;color:#666;margin-bottom:0;"></p>
     <span id="final-percent"></span>
     <p id="final-msg" style="font-size:1.3rem;text-align:center;"></p>
+    <!-- What to keep practicing: what the lesson works on, the skills missed, the kind of mistake made most (Marcos 10/20) -->
+    <div class="dir-section practice-box hidden" id="practice-box">
+      <div class="dir-row"><button class="speak-btn" onclick="speakDir(this)" title="Read this aloud">🔊</button><h3 style="margin:0;">🎯 What to keep practicing</h3></div>
+      <p class="dir-text" id="practice-text"></p>
+    </div>
     <div id="missed-section" class="missed-list hidden">
       <h3>📋 Questions You Missed:</h3>
       <div id="missed-items"></div>
@@ -386,6 +398,11 @@
 <script src="data/words.js?v=lab1"></script>
 <script src="data/skills.js?v=lab5"></script>
 <script src="visuals.js?v=lab5"></script>
-<script src="script.js?v=lab6"></script>
+<script src="data/rc1.js?v=rc1"></script>
+<script src="data/rc2.js?v=rc1"></script>
+<script src="data/rc3.js?v=rc1"></script>
+<script src="reading.js?v=rc1"></script>
+<script src="script.js?v=lab8"></script>
+<script src="reading-ui.js?v=rc2"></script>
 </body>
 </html>
