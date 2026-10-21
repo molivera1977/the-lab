@@ -15,9 +15,9 @@
    the two numbers. Each wrong choice stands for one slip, and its note names that slip with
    the problem's own numbers (Marcos 10/12: name the mistake, do not just say "try again").
    A retry gets new facts (Marcos 10/16): 4 versions per lesson, version 1 = LAB_<ID>.
-   A retry teaches again (Marcos 10/21: "a new worked example and a different explanation on the second try"):
-   each version's worked examples and steps use their own facts, and versions 2 and 4 show the same method with a
-   new picture (lessons.js teach(skill, ctx); ctx.way 'B'). A worked example's fact is never a question in its version.
+   A retry teaches again, the same way (Marcos 10/21: "yes, I like the new worked example"; "switch to one method,
+   new numbers"): each version's worked examples and steps use their own facts, with the lesson's one method and
+   picture (lessons.js teach(skill, ctx)). A worked example's fact is never a question in its version.
 
    Run:  node tools/gen-lab.js        → writes data/as1.js … data/as6.js, data/skills.js
    Check: node tools/check-lab.js     (an independent checker — it re-works every answer)
@@ -80,7 +80,7 @@ function buildVersion(L, v, lessonUsed, teachUsed) {
     if (out.length < n) throw new Error(`${L.id} v${v}: teaching pool too small (${out.length} of ${n})`);
     return out;
   };
-  const ctx = { v, way: v % 2 ? 'A' : 'B', pick: teachPick, take: t => markTaken(t), used: t => usedFact.has(sameFact(t)) };
+  const ctx = { v, pick: teachPick, take: t => markTaken(t), used: t => usedFact.has(sameFact(t)) };
   const teach = L.teach(L.skill, ctx).map(it => ({ ...it, id: `${L.id}-${it.id}` }));
   // teaching first: watch / step items, then the scored questions
   items.push(...teach);

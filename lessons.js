@@ -345,55 +345,49 @@ function step(id, skill, q, answer, wrongs, extra = {}) {
 }
 const watch = (id, skill, title, lines, pic) => ({ id, kind: 'watch', skill, title, text: lines.join('\n'), pic });
 
-/* ═══ RETRIES TEACH AGAIN (Marcos 10/21: "yes, I like the new worked example and a different explanation on the
-   second try"; "same idea, new picture") ═══
-   teach(skill, ctx) builds a lesson's worked examples and steps for ONE version:
+/* ═══ A RETRY TEACHES AGAIN, THE SAME WAY (Marcos 10/21: "yes, I like the new worked example"; then "switch to one
+   method, new numbers") ═══
+   teach(skill, ctx) builds a lesson's worked examples and steps for ONE version, with the lesson's one method and one
+   picture (the picture its questions use), and numbers of its own:
      ctx.v    1–4 (a retry gets the next version)
-     ctx.way  'A' on versions 1 and 3 (the lesson's own picture), 'B' on 2 and 4 (the same method, a new picture)
      ctx.pick(pool, n) → n facts from the lesson's pool, none used anywhere else in this version (so no question
               repeats a worked example), and none another version's worked example used where it can (its own numbers)
      ctx.take(fact) sets a fact aside too (a ten partner's other half) · ctx.used(fact): is it already in this version?
-   Way B starts with one screen that says why the picture is new. Nothing is typed: every number, answer and
-   note below comes from the facts picked. */
+   Nothing is typed: every number, answer and note below comes from the facts picked. */
 const NUM_WORD = { 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six' };
-const newWay = sk => watch('W0', sk, 'A new way', ['You are trying this lesson again.', 'This time you will see it with a new picture.']);
 // a step's wrong choices: the first two that are not the answer, not below 0, and not the same as each other
 const wrongsOf = (answer, cands) => {
   const seen = new Set([String(answer)]);
   return cands.filter(([v]) => v != null && !(typeof v === 'number' && v < 0) && !seen.has(String(v)) && seen.add(String(v))).slice(0, 2);
 };
-const seqList = (from, n, dir) => (dir > 0 ? seqUp(from, n) : seqDown(from, n));
 // the same counting list, with the start said too (a slip), or the first number skipped (a slip)
 const withStart = (from, n, dir) => [from, ...range(1, n - 1).map(i => from + dir * i)].join(', ');
 const skipFirst = (from, n, dir) => range(2, n + 1).map(i => from + dir * i).join(', ');
 const one = (pick, pool) => pick(pool, 1)[0];
-const hopsOf = n => `${n} ${n === 1 ? 'hop' : 'hops'}`;
 const boxesOf = n => `${n} ${n === 1 ? 'box' : 'boxes'}`;
 
-/* AS1 · Count on to add — A: number line · B: two ten frames (the big number in your head, touch the small one) */
-function teachCountOn(sk, { way, pick }) {
-  const B = way === 'B', hi = B ? 10 : 15;
-  const bigFirst = (s, lo) => countOnPool().filter(([a, b]) => b === s && a >= lo && a <= hi);
-  const smallFirst = (s, lo) => countOnPool().filter(([a, b]) => a === s && b >= lo && b <= hi);
+/* AS1 · Count on to add — the number line */
+function teachCountOn(sk, { pick }) {
+  const bigFirst = (s, lo) => countOnPool().filter(([a, b]) => b === s && a >= lo && a <= 15);
+  const smallFirst = (s, lo) => countOnPool().filter(([a, b]) => a === s && b >= lo && b <= 15);
+  // each example its own numbers, so every version's are new
   const [a1, s1] = one(pick, bigFirst(3, 5)), [a2, s2] = one(pick, bigFirst(3, 6));
-  const [s3, a3] = one(pick, smallFirst(2, 7)), [s4, a4] = one(pick, smallFirst(2, B ? 7 : 10));
+  const [s3, a3] = one(pick, smallFirst(2, 7)), [s4, a4] = one(pick, smallFirst(2, 10));
   const said = (s, a) => seqUp(a, s);
   const line = (from, jumps) => ({ line: { lo: 0, hi: 20, from, jumps, dir: 1 } });
-  const dots = (a, s) => ({ frames: { a, b: s } });
-  const startStep = (id, x, y, big, small) => step(id, sk, B ? `${add(x, y)}. Which number do you put in your head?` : `${add(x, y)}. Which number do you start at?`, big, [
-    [small, B ? `Put the bigger number in your head. ${big} is bigger than ${small}.` : `Start at the bigger number. ${big} is bigger than ${small}. Start at ${big}.`]
-  ], { pic: B ? dots(big, small) : { line: { lo: 0, hi: 20 } } });
-  const sayStep = (id, big, small) => step(id, sk,
-    B ? `${big} is in your head. Touch the ${small} blue dots. Which numbers do you say?` : `Start at ${big}. Count on ${small} more. Which numbers do you say?`, said(small, big),
+  const startStep = (id, x, y, big, small) => step(id, sk, `${add(x, y)}. Which number do you start at?`, big, [
+    [small, `Start at the bigger number. ${big} is bigger than ${small}. Start at ${big}.`]
+  ], { pic: { line: { lo: 0, hi: 20 } } });
+  const sayStep = (id, big, small) => step(id, sk, `Start at ${big}. Count on ${small} more. Which numbers do you say?`, said(small, big),
     wrongsOf(said(small, big), [
-      [withStart(big, small, 1), B ? `Do not say ${big}. It is already in your head. Say ${said(small, big)}.` : `Do not say the ${big}. You are already at ${big}. The first number you say is ${big + 1}: ${said(small, big)}.`],
+      [withStart(big, small, 1), `Do not say the ${big}. You are already at ${big}. The first number you say is ${big + 1}: ${said(small, big)}.`],
       [skipFirst(big, small, 1), `You skipped ${big + 1}. The number after ${big} is ${big + 1}. Say ${said(small, big)}.`]
-    ]), { pic: B ? dots(big, small) : { line: { lo: 0, hi: 20, from: big } } });
+    ]), { pic: { line: { lo: 0, hi: 20, from: big } } });
   const answerStep = (id, x, y, big, small) => step(id, sk, `You said ${said(small, big)}. So what is ${add(x, y)}?`, big + small, wrongsOf(big + small, [
     [big + small - 1, `The last number you said is the answer. You said ${said(small, big)}. The last one is ${big + small}.`],
     [big + small + 1, `You said ${NUM_WORD[small]} numbers: ${said(small, big)}. Stop at ${big + small}. The answer is ${big + small}.`]
-  ]), { explain: B ? dots(big, small) : line(big, small) });
-  if (!B) return [
+  ]), { explain: line(big, small) });
+  return [
     watch('W1', sk, 'Count on to add', [
       `${add(a1, s1)}. Start at the big number, ${a1}.`,
       `Do not count the ${a1}. You are already there.`,
@@ -409,61 +403,28 @@ function teachCountOn(sk, { way, pick }) {
     ], line(a3, s3)),
     startStep('S4', s4, a4, a4, s4), sayStep('S5', a4, s4), answerStep('S6', s4, a4, a4, s4)
   ];
-  return [
-    newWay(sk),
-    watch('W1', sk, 'Count on with dots', [
-      `${add(a1, s1)}. Put the big number, ${a1}, in your head.`,
-      `Touch each of the ${s1} blue dots. Count on as you touch: ${said(s1, a1)}.`,
-      `You stopped at ${a1 + s1}. So ${add(a1, s1)} = ${a1 + s1}.`
-    ], dots(a1, s1)),
-    startStep('S1', a2, s2, a2, s2), sayStep('S2', a2, s2), answerStep('S3', a2, s2, a2, s2),
-    watch('W2', sk, 'Put the bigger number in your head', [
-      `${add(s3, a3)}. The ${a3} is the bigger number. Put ${a3} in your head.`,
-      `Touch each of the ${s3} blue dots. Count on as you touch: ${said(s3, a3)}.`,
-      `So ${add(s3, a3)} = ${a3 + s3}.`
-    ], dots(a3, s3)),
-    startStep('S4', s4, a4, a4, s4), sayStep('S5', a4, s4), answerStep('S6', s4, a4, a4, s4)
-  ];
 }
 
-/* AS2 · Make 10 — A: ten frames · B: a number line (hop to 10 first, then the rest) */
-function teachMake10(sk, { way, pick, take }) {
-  const B = way === 'B';
+/* AS2 · Make 10 — ten frames */
+function teachMake10(sk, { pick, take }) {
   // a ten partner is one fact both ways: "7 and 3" is also the question "What number and 3 make 10?"
   const p1 = one(pick, [5, 6, 7, 8]); take(10 - p1);
   const p2 = one(pick, [2, 3, 4, 9]); take(10 - p2);        // its own list, so every version's example is new
   const bigFirst = make10Pool().filter(([a, b]) => a > b);
   const [a, b] = one(pick, bigFirst), [c, d] = one(pick, bigFirst);
   const n = 10 - a, m = 10 - c;
-  const partners = 'Two numbers that make 10 are ten partners.';
-  const steps = [
-    step('S2', sk, B ? `${add(c, d)}. Start at ${c}. How many hops to get to 10?` : `${add(c, d)}. ${c} needs how many to make 10?`, m, wrongsOf(m, [
-      [d, B ? `Hop only to 10 first: ${seqUp(c, m)}. That is ${hopsOf(m)}.` : `${c} and ${m} make 10. ${c} needs only ${m}.`],
-      [m + 1, B ? `Count the hops from ${c} to 10: ${seqUp(c, m)}. That is ${hopsOf(m)}.` : `${c} and ${m} make 10. ${c} needs ${m}.`],
-      [m + 2, `${c} and ${m} make 10. ${c} needs ${m}.`]
-    ]), { pic: B ? { line: { lo: 0, hi: 20, from: c } } : { frames: { a: c, b: d } } }),
-    step('S3', sk, B ? `You are at 10. ${d} is ${m} and how many more?` : `Take ${m} from the ${d}. How many are left?`, d - m, wrongsOf(d - m, [
-      [d, B ? `You already hopped ${m}. ${d} is ${m} and ${d - m}. Hop ${d - m} more.` : `You took ${m} away, so there are fewer. ${d} is ${m} and ${d - m}. ${d - m} are left.`],
-      [d + m, B ? `Take the ${hopsOf(m)} away from ${d}. ${d} is ${m} and ${d - m}.` : `Take away, do not add. ${d} is ${m} and ${d - m}. ${d - m} are left.`],
-      [d - m + 1, `${d} is ${m} and ${d - m}. ${d - m} are left.`]
-    ]), { pic: B ? { line: { lo: 0, hi: 20, from: c, jumps: m, dir: 1 } } : { frames: { a: c, b: d, make10: true } } }),
-    step('S4', sk, B ? `Hop ${d - m} more from 10. So what is ${add(c, d)}?` : `Now it is ${add(10, d - m)}. So what is ${add(c, d)}?`, c + d, wrongsOf(c + d, [
-      [10 + d, `You added 10 and ${d}. But ${m} of the ${d} went to make 10. Only ${d - m} are left. ${add(10, d - m)} = ${c + d}.`],
-      [c + d - 1, `${add(10, d - m)} = ${c + d}. 10 and ${d - m} more is ${c + d}.`],
-      [c + d + 1, `${add(10, d - m)} = ${c + d}. 10 and ${d - m} more is ${c + d}.`]
-    ]), { explain: B ? { line: { lo: 0, hi: 20, from: c, jumps: d, dir: 1, split: 10 } } : { frames: { a: c, b: d, make10: true } } })
-  ];
-  if (!B) return [
+  const empty = k => (k === 1 ? 'There is 1 empty box' : `There are ${k} empty boxes`);
+  return [
     watch('W1', sk, 'Ten partners', [
-      partners,
+      'Two numbers that make 10 are ten partners.',
       `1 and 9. 2 and 8. 3 and 7. 4 and 6. 5 and 5.`,
       `Look at the ten frame. It has 10 boxes. ${p1} boxes have dots. ${boxesOf(10 - p1)} ${10 - p1 === 1 ? 'is' : 'are'} empty.`,
       `So ${p1} and ${10 - p1} are ten partners. ${add(p1, 10 - p1)} = 10.`
     ], { frames: { a: p1, fill: 10 - p1 } }),
     step('S1', 'Ten partners', `${p2} boxes have dots. How many boxes are empty?`, 10 - p2, wrongsOf(10 - p2, [
-      [p2, `Count the EMPTY boxes, not the dots. ${p2 === 9 ? 'There is 1 empty box' : `There are ${10 - p2} empty boxes`}. ${p2} and ${10 - p2} make 10.`],
-      [10 - p2 - 1, `Count the empty boxes again. ${p2 === 9 ? 'There is 1' : `There are ${10 - p2}`}. ${p2} and ${10 - p2} make 10.`],
-      [10 - p2 + 1, `Count the empty boxes again. ${p2 === 9 ? 'There is 1' : `There are ${10 - p2}`}. ${p2} and ${10 - p2} make 10.`]
+      [p2, `Count the EMPTY boxes, not the dots. ${empty(10 - p2)}. ${p2} and ${10 - p2} make 10.`],
+      [10 - p2 - 1, `Count the empty boxes again. ${empty(10 - p2)}. ${p2} and ${10 - p2} make 10.`],
+      [10 - p2 + 1, `Count the empty boxes again. ${empty(10 - p2)}. ${p2} and ${10 - p2} make 10.`]
     ]), { pic: { frames: { a: p2 } }, explain: { frames: { a: p2, fill: 10 - p2 } } }),
     watch('W2', sk, 'Make 10 to add', [
       `${add(a, b)}. ${a} needs ${n} to make 10.`,
@@ -471,63 +432,32 @@ function teachMake10(sk, { way, pick, take }) {
       `${add(a, n)} = 10. Then ${add(10, b - n)} = ${a + b}.`,
       `So ${add(a, b)} = ${a + b}.`
     ], { frames: { a, b, make10: true } }),
-    ...steps
-  ];
-  return [
-    newWay(sk),
-    watch('W1', sk, 'Ten partners on a number line', [
-      partners,
-      `Start at ${p1}. Hop to 10. Say ${seqUp(p1, 10 - p1)}. That is ${hopsOf(10 - p1)}.`,
-      `So ${p1} and ${10 - p1} are ten partners. ${add(p1, 10 - p1)} = 10.`
-    ], { line: { lo: 0, hi: 20, from: p1, jumps: 10 - p1, dir: 1 } }),
-    step('S1', 'Ten partners', `Start at ${p2}. How many hops to get to 10?`, 10 - p2, wrongsOf(10 - p2, [
-      [p2, `${p2} is where you start. Count the hops to 10: ${seqUp(p2, 10 - p2)}. That is ${hopsOf(10 - p2)}.`],
-      [10 - p2 + 1, `Do not count the ${p2}. Count the hops to 10: ${seqUp(p2, 10 - p2)}. That is ${hopsOf(10 - p2)}.`],
-      [10 - p2 - 1, `Count the hops to 10 again: ${seqUp(p2, 10 - p2)}. That is ${hopsOf(10 - p2)}.`]
-    ]), { pic: { line: { lo: 0, hi: 20, from: p2 } }, explain: { line: { lo: 0, hi: 20, from: p2, jumps: 10 - p2, dir: 1 } } }),
-    watch('W2', sk, 'Make 10 on a number line', [
-      `${add(a, b)}. Start at ${a}.`,
-      `First hop to 10. Say ${seqUp(a, n)}. That is ${hopsOf(n)}.`,
-      `${b} is ${n} and ${b - n}. Hop ${b - n} more. Say ${seqUp(10, b - n)}.`,
-      `You stopped at ${a + b}. So ${add(a, b)} = ${a + b}.`
-    ], { line: { lo: 0, hi: 20, from: a, jumps: b, dir: 1, split: 10 } }),
-    ...steps
+    step('S2', sk, `${add(c, d)}. ${c} needs how many to make 10?`, m, wrongsOf(m, [
+      [d, `${c} and ${m} make 10. ${c} needs only ${m}.`],
+      [m + 1, `${c} and ${m} make 10. ${c} needs ${m}.`],
+      [m + 2, `${c} and ${m} make 10. ${c} needs ${m}.`]
+    ]), { pic: { frames: { a: c, b: d } } }),
+    step('S3', sk, `Take ${m} from the ${d}. How many are left?`, d - m, wrongsOf(d - m, [
+      [d, `You took ${m} away, so there are fewer. ${d} is ${m} and ${d - m}. ${d - m} are left.`],
+      [d + m, `Take away, do not add. ${d} is ${m} and ${d - m}. ${d - m} are left.`],
+      [d - m + 1, `${d} is ${m} and ${d - m}. ${d - m} are left.`]
+    ]), { pic: { frames: { a: c, b: d, make10: true } } }),
+    step('S4', sk, `Now it is ${add(10, d - m)}. So what is ${add(c, d)}?`, c + d, wrongsOf(c + d, [
+      [10 + d, `You added 10 and ${d}. But ${m} of the ${d} went to make 10. Only ${d - m} are left. ${add(10, d - m)} = ${c + d}.`],
+      [c + d - 1, `${add(10, d - m)} = ${c + d}. 10 and ${d - m} more is ${c + d}.`],
+      [c + d + 1, `${add(10, d - m)} = ${c + d}. 10 and ${d - m} more is ${c + d}.`]
+    ]), { explain: { frames: { a: c, b: d, make10: true } } })
   ];
 }
 
-/* AS3 · Teen numbers — A: a ten stick and ones · B: a place chart (tens and ones) */
-function teachTeen(sk, { way, pick }) {
-  const B = way === 'B';
+/* AS3 · Teen numbers — a ten stick and ones */
+function teachTeen(sk, { pick }) {
   const pool = kind => teenPool().filter(t => t[0] === kind);
   const [, , n1] = one(pick, pool('ten').filter(t => t[2] >= 2)), [, , n2] = one(pick, pool('ten').filter(t => t[2] >= 2));
   const [, w, x] = one(pick, pool('plus')), [, w2, x2] = one(pick, pool('plus'));
   const [, y, z] = one(pick, pool('minus')), [, y2, z2] = one(pick, pool('minus'));
   const o = k => k - 10;   // the ones of a teen number
-  const chart = (a, b2) => ({ places: b2 != null ? { n: a, n2: b2 } : { n: a } });
-  const wPlus = add(w, x), wMinus = sub(y, z);
-  const plusS = [
-    step('S3', sk, `${add(w2, x2)}. Add the ones. What is ${add(o(w2), x2)}?`, o(w2) + x2, wrongsOf(o(w2) + x2, [
-      [o(w2) + x2 - 1, `Count on from ${o(w2)}: ${seqUp(o(w2), x2)}. ${add(o(w2), x2)} = ${o(w2) + x2}.`],
-      [Math.abs(o(w2) - x2), `Add, do not take away. ${add(o(w2), x2)} = ${o(w2) + x2}.`],
-      [o(w2) + x2 + 1, `Count on from ${o(w2)}: ${seqUp(o(w2), x2)}. ${add(o(w2), x2)} = ${o(w2) + x2}.`]
-    ]), { pic: B ? chart(w2) : { teen: { tens: 1, ones: o(w2), more: x2 } } }),
-    step('S4', sk, `The ten stays. So what is ${add(w2, x2)}?`, w2 + x2, wrongsOf(w2 + x2, [
-      [w2 + x2 + 10, `You made 2 tens. The ten stays 1 ten. 1 ten and ${onesOf(o(w2) + x2)} is ${w2 + x2}.`],
-      [o(w2) + x2, `Keep the ten. 1 ten and ${onesOf(o(w2) + x2)} is ${w2 + x2}.`]
-    ]), { explain: B ? chart(w2, w2 + x2) : { teen: { tens: 1, ones: o(w2), more: x2, show: w2 + x2 } } })
-  ];
-  const minusS = [
-    step('S5', sk, `${sub(y2, z2)}. Take from the ones. What is ${sub(o(y2), z2)}?`, o(y2) - z2, wrongsOf(o(y2) - z2, [
-      [o(y2) + z2, `Take away, do not add. ${sub(o(y2), z2)} = ${o(y2) - z2}.`],
-      [o(y2) - z2 + 1, `Count back ${z2} from ${o(y2)}: ${seqDown(o(y2), z2)}. ${sub(o(y2), z2)} = ${o(y2) - z2}.`],
-      [o(y2) - z2 + 2, `Count back ${z2} from ${o(y2)}: ${seqDown(o(y2), z2)}. ${sub(o(y2), z2)} = ${o(y2) - z2}.`]
-    ]), { pic: B ? chart(y2) : { teen: { tens: 1, ones: o(y2), away: z2 } } }),
-    step('S6', sk, `The ten stays. So what is ${sub(y2, z2)}?`, y2 - z2, wrongsOf(y2 - z2, [
-      [o(y2) - z2, `Keep the ten. 1 ten and ${onesOf(o(y2) - z2)} is ${y2 - z2}.`],
-      [y2 + z2, `You added. The minus sign means take away. 1 ten and ${onesOf(o(y2) - z2)} is ${y2 - z2}.`]
-    ]), { explain: B ? chart(y2, y2 - z2) : { teen: { tens: 1, ones: o(y2), away: z2, show: y2 - z2 } } })
-  ];
-  if (!B) return [
+  return [
     watch('W1', sk, 'Teen numbers', [
       'A teen number is 10 and some more.',
       `${10 + n1} is 10 and ${n1}. ${add(10, n1)} = ${10 + n1}.`,
@@ -543,73 +473,57 @@ function teachTeen(sk, { way, pick }) {
       [20 + n2, `There is only 1 ten. 1 ten and ${n2} ones is ${10 + n2}.`]
     ]), { pic: { teen: { tens: 1, ones: n2 } }, explain: { teen: { tens: 1, ones: n2, show: 10 + n2 } } }),
     watch('W2', sk, 'Add ones to a teen number', [
-      `${wPlus}. ${w} is 10 and ${o(w)}.`,
+      `${add(w, x)}. ${w} is 10 and ${o(w)}.`,
       `Add the ones: ${add(o(w), x)} = ${o(w) + x}.`,
       'The ten stays 1 ten.',
-      `1 ten and ${onesOf(o(w) + x)} is ${w + x}. So ${wPlus} = ${w + x}.`
+      `1 ten and ${onesOf(o(w) + x)} is ${w + x}. So ${add(w, x)} = ${w + x}.`
     ], { teen: { tens: 1, ones: o(w), more: x, show: w + x } }),
-    ...plusS,
+    step('S3', sk, `${add(w2, x2)}. Add the ones. What is ${add(o(w2), x2)}?`, o(w2) + x2, wrongsOf(o(w2) + x2, [
+      [o(w2) + x2 - 1, `Count on from ${o(w2)}: ${seqUp(o(w2), x2)}. ${add(o(w2), x2)} = ${o(w2) + x2}.`],
+      [Math.abs(o(w2) - x2), `Add, do not take away. ${add(o(w2), x2)} = ${o(w2) + x2}.`],
+      [o(w2) + x2 + 1, `Count on from ${o(w2)}: ${seqUp(o(w2), x2)}. ${add(o(w2), x2)} = ${o(w2) + x2}.`]
+    ]), { pic: { teen: { tens: 1, ones: o(w2), more: x2 } } }),
+    step('S4', sk, `The ten stays. So what is ${add(w2, x2)}?`, w2 + x2, wrongsOf(w2 + x2, [
+      [w2 + x2 + 10, `You made 2 tens. The ten stays 1 ten. 1 ten and ${onesOf(o(w2) + x2)} is ${w2 + x2}.`],
+      [o(w2) + x2, `Keep the ten. 1 ten and ${onesOf(o(w2) + x2)} is ${w2 + x2}.`]
+    ]), { explain: { teen: { tens: 1, ones: o(w2), more: x2, show: w2 + x2 } } }),
     watch('W3', sk, 'Take ones from a teen number', [
-      `${wMinus}. ${y} is 10 and ${o(y)}.`,
+      `${sub(y, z)}. ${y} is 10 and ${o(y)}.`,
       `Take from the ones: ${sub(o(y), z)} = ${o(y) - z}.`,
       'The ten stays 1 ten.',
-      `1 ten and ${onesOf(o(y) - z)} is ${y - z}. So ${wMinus} = ${y - z}.`
+      `1 ten and ${onesOf(o(y) - z)} is ${y - z}. So ${sub(y, z)} = ${y - z}.`
     ], { teen: { tens: 1, ones: o(y), away: z, show: y - z } }),
-    ...minusS
-  ];
-  return [
-    newWay(sk),
-    watch('W1', sk, 'Teen numbers on a place chart', [
-      `${10 + n1} is 1 ten and ${n1} ones. ${add(10, n1)} = ${10 + n1}.`,
-      `On the place chart, the 1 is in the tens place.`,
-      `The ${n1} is in the ones place.`
-    ], chart(10 + n1)),
-    step('S1', sk, `Look at ${10 + n2} on the place chart. What digit is in the ones place?`, n2, wrongsOf(n2, [
-      [1, `The 1 is in the tens place. The ones place has the ${n2}.`],
-      [10 + n2, `Look at one place only, the ones place. It has the ${n2}.`]
-    ]), { pic: chart(10 + n2) }),
-    step('S2', sk, `1 in the tens place and ${n2} in the ones place. What number is that?`, 10 + n2, wrongsOf(10 + n2, [
-      [Number(`${n2}1`), `The tens place comes first. 1 ten and ${n2} ones is ${10 + n2}.`],
-      [1 + n2, `The 1 is a ten, not a one. 1 ten and ${n2} ones is ${10 + n2}.`]
-    ]), { explain: chart(10 + n2) }),
-    watch('W2', sk, 'Add in the ones place', [
-      `${wPlus}. Put ${w} on the place chart.`,
-      `Add in the ones place: ${add(o(w), x)} = ${o(w) + x}.`,
-      'The tens place stays 1.',
-      `So ${wPlus} = ${w + x}.`
-    ], chart(w, w + x)),
-    ...plusS,
-    watch('W3', sk, 'Take away in the ones place', [
-      `${wMinus}. Put ${y} on the place chart.`,
-      `Take away in the ones place: ${sub(o(y), z)} = ${o(y) - z}.`,
-      'The tens place stays 1.',
-      `So ${wMinus} = ${y - z}.`
-    ], chart(y, y - z)),
-    ...minusS
+    step('S5', sk, `${sub(y2, z2)}. Take from the ones. What is ${sub(o(y2), z2)}?`, o(y2) - z2, wrongsOf(o(y2) - z2, [
+      [o(y2) + z2, `Take away, do not add. ${sub(o(y2), z2)} = ${o(y2) - z2}.`],
+      [o(y2) - z2 + 1, `Count back ${z2} from ${o(y2)}: ${seqDown(o(y2), z2)}. ${sub(o(y2), z2)} = ${o(y2) - z2}.`],
+      [o(y2) - z2 + 2, `Count back ${z2} from ${o(y2)}: ${seqDown(o(y2), z2)}. ${sub(o(y2), z2)} = ${o(y2) - z2}.`]
+    ]), { pic: { teen: { tens: 1, ones: o(y2), away: z2 } } }),
+    step('S6', sk, `The ten stays. So what is ${sub(y2, z2)}?`, y2 - z2, wrongsOf(y2 - z2, [
+      [o(y2) - z2, `Keep the ten. 1 ten and ${onesOf(o(y2) - z2)} is ${y2 - z2}.`],
+      [y2 + z2, `You added. The minus sign means take away. 1 ten and ${onesOf(o(y2) - z2)} is ${y2 - z2}.`]
+    ]), { explain: { teen: { tens: 1, ones: o(y2), away: z2, show: y2 - z2 } } })
   ];
 }
 
-/* AS4 · Count back to subtract — A: number line · B: dots crossed out, counting back */
-function teachCountBack(sk, { way, pick }) {
-  const B = way === 'B';
+/* AS4 · Count back to subtract — the number line */
+function teachCountBack(sk, { pick }) {
   const back = (s, lo, hi) => countBackPool().filter(([a, b]) => b === s && a >= lo && a <= hi);
   // each example its own numbers, so every version's are new
   const [a1, s1] = one(pick, back(3, 10, 13)), [a2, s2] = one(pick, back(2, 8, 13));
   const [a3, s3] = one(pick, back(3, 14, 17)), [a4, s4] = one(pick, back(3, 6, 9));
   const line = (from, jumps) => ({ line: { lo: 0, hi: 20, from, jumps, dir: -1 } });
-  const dots = (n, take) => ({ frames: take ? { n, take } : { n } });
   const said = (a, s) => seqDown(a, s);
   const saySteps = (ids, a, s) => [
-    step(ids[0], sk, B ? `Cross out ${s} dots. Count back as you cross out. Which numbers do you say?` : `Start at ${a}. Count back ${s}. Which numbers do you say?`, said(a, s), wrongsOf(said(a, s), [
-      [withStart(a, s, -1), B ? `Do not say ${a}. Start one below it. Say ${said(a, s)}.` : `Do not say the ${a}. You are already at ${a}. Say ${said(a, s)}.`],
+    step(ids[0], sk, `Start at ${a}. Count back ${s}. Which numbers do you say?`, said(a, s), wrongsOf(said(a, s), [
+      [withStart(a, s, -1), `Do not say the ${a}. You are already at ${a}. Say ${said(a, s)}.`],
       [seqUp(a, s), `That is counting up. Take away means count back. Say ${said(a, s)}.`]
-    ]), { pic: B ? dots(a) : { line: { lo: 0, hi: 20, from: a } } }),
+    ]), { pic: { line: { lo: 0, hi: 20, from: a } } }),
     step(ids[1], sk, `You said ${said(a, s)}. So what is ${sub(a, s)}?`, a - s, wrongsOf(a - s, [
       [a - s + 1, `The last number you said is the answer. You said ${said(a, s)}. The answer is ${a - s}.`],
       [a + s, `Take away makes the number smaller. You said ${said(a, s)}. The answer is ${a - s}.`]
-    ]), { explain: B ? dots(a, s) : line(a, s) })
+    ]), { explain: line(a, s) })
   ];
-  if (!B) return [
+  return [
     watch('W1', sk, 'Count back to subtract', [
       `${sub(a1, s1)}. Start at ${a1}.`,
       `Do not count the ${a1}. You are already there.`,
@@ -626,31 +540,10 @@ function teachCountBack(sk, { way, pick }) {
     ], line(a3, s3)),
     ...saySteps(['S4', 'S5'], a4, s4)
   ];
-  return [
-    newWay(sk),
-    watch('W1', sk, 'Cross out to take away', [
-      `${sub(a1, s1)}. Here are ${a1} dots.`,
-      `Cross out ${s1} dots, one at a time. Count back as you cross out. Say ${said(a1, s1)}.`,
-      `${a1 - s1} dots are left. So ${sub(a1, s1)} = ${a1 - s1}.`
-    ], dots(a1, s1)),
-    step('S1', sk, `${sub(a2, s2)}. How many dots do you cross out?`, s2, wrongsOf(s2, [
-      [a2, `${a2} is how many dots there are. Cross out ${s2}, the number you take away.`],
-      [s2 + 1, `Take away ${s2}. Cross out ${s2} dots.`]
-    ]), { pic: dots(a2) }),
-    ...saySteps(['S2', 'S3'], a2, s2),
-    watch('W2', sk, 'Fewer dots are left', [
-      `${sub(a3, s3)}. Here are ${a3} dots. Cross out ${s3}.`,
-      `Count back as you cross out. Say ${said(a3, s3)}.`,
-      `${a3 - s3} dots are left. So ${sub(a3, s3)} = ${a3 - s3}.`,
-      `${a3 - s3} is smaller than ${a3}. When you take away, the answer is smaller.`
-    ], dots(a3, s3)),
-    ...saySteps(['S4', 'S5'], a4, s4)
-  ];
 }
 
-/* AS5 · Subtract by thinking addition — A: count up on a number line + a fact family bond · B: the same with dots */
-function teachThinkAdd(sk, { way, pick, take, used }) {
-  const B = way === 'B';
+/* AS5 · Subtract by thinking addition — count up on the number line, and a fact family */
+function teachThinkAdd(sk, { pick, take, used }) {
   // a subtraction asked another way in this version (a fact family question, or Show what you know) is not an example
   const up = d => countUpPool().filter(([big, small]) => big - small === d && big <= 15 && !used([d, small]) && !used([small, d]));
   const [b1, m1] = one(pick, up(4)), [b2, m2] = one(pick, up(3));     // the example counts up 4, the steps 3: each version its own
@@ -663,62 +556,42 @@ function teachThinkAdd(sk, { way, pick, take, used }) {
   // … and a fact family's "13 − 7" is also the count-up question [13, 7]
   [[c1, f1], [c1, g1], [c2, f2], [c2, g2]].forEach(take);
   const said = seqUp(m2, d2);
-  const steps = [
-    step('S1', 'Count up to subtract', B ? `${sub(b2, m2)}. Start with ${m2} dots. Add dots up to ${b2}. Which numbers do you say?` : `${sub(b2, m2)}. Start at ${m2}. Count up to ${b2}. Which numbers do you say?`, said, wrongsOf(said, [
-      [withStart(m2, d2 + 1, 1), B ? `Do not say ${m2}. Those dots are already there. Say ${said}.` : `Do not say the ${m2}. You are already at ${m2}. Say ${said}.`],
-      [skipFirst(m2, d2 - 1, 1), `You skipped ${m2 + 1}. The number after ${m2} is ${m2 + 1}. Say ${said}.`]
-    ]), { pic: B ? { frames: { n: m2 } } : { line: { lo: 0, hi: 20, from: m2 } } }),
-    step('S2', 'Count up to subtract', B ? `You said ${said}. How many dots did you add? That is the answer to ${sub(b2, m2)}.` : `You said ${said}. So what is ${sub(b2, m2)}?`, d2, wrongsOf(d2, [
-      [d2 + 1, B ? `Count the green dots: ${said}. That is ${d2} dots. The answer is ${d2}.` : `Count the numbers you said: ${said}. That is ${d2} numbers. The answer is ${d2}.`],
-      [b2, `${b2} is where you stopped. The answer is how many ${B ? 'dots you added' : 'numbers you said'}: ${d2}.`]
-    ]), { explain: B ? { frames: { n: m2, up: b2 } } : { line: { lo: 0, hi: 20, from: m2, jumps: d2, dir: 1 } } }),
-    step('S3', sk, `${add(f2, g2)} = ${c2}. So what is ${sub(c2, g2)}?`, f2, wrongsOf(f2, [
-      [g2, `${g2} is the number you take away. ${add(f2, g2)} = ${c2}, so ${sub(c2, g2)} = ${f2}.`],
-      [c2 + g2, `You added. The minus sign means take away. ${add(f2, g2)} = ${c2}, so ${sub(c2, g2)} = ${f2}.`]
-    ]), B ? { pic: { frames: { a: f2, b: g2 } } } : { pic: { bond: { a: f2, b: g2, c: c2, ask: 'a' } }, explain: { bond: { a: f2, b: g2, c: c2 } } }),
-    step('S4', sk, `${add(f2, g2)} = ${c2}. So what is ${sub(c2, f2)}?`, g2, wrongsOf(g2, [
-      [f2, `${f2} is the number you take away. ${add(f2, g2)} = ${c2}, so ${sub(c2, f2)} = ${g2}.`],
-      [Math.abs(f2 - g2), `Use the adding fact. ${add(f2, g2)} = ${c2}, so ${sub(c2, f2)} = ${g2}.`],
-      [g2 + 1, `Use the adding fact. ${add(f2, g2)} = ${c2}, so ${sub(c2, f2)} = ${g2}.`]
-    ]), B ? { pic: { frames: { a: f2, b: g2 } } } : { pic: { bond: { a: f2, b: g2, c: c2, ask: 'b' } }, explain: { bond: { a: f2, b: g2, c: c2 } } })
-  ];
-  if (!B) return [
+  return [
     watch('W1', sk, 'Count up to subtract', [
       `${sub(b1, m1)}. The two numbers are close together.`,
       `Start at the small number, ${m1}. Do not count the ${m1}.`,
       `Count up to ${b1}. Say ${seqUp(m1, d1)}. Hold up one finger for each number you say.`,
       `You said ${d1} numbers. So ${sub(b1, m1)} = ${d1}.`
     ], { line: { lo: 0, hi: 20, from: m1, jumps: d1, dir: 1 } }),
-    steps[0], steps[1],
+    step('S1', 'Count up to subtract', `${sub(b2, m2)}. Start at ${m2}. Count up to ${b2}. Which numbers do you say?`, said, wrongsOf(said, [
+      [withStart(m2, d2 + 1, 1), `Do not say the ${m2}. You are already at ${m2}. Say ${said}.`],
+      [skipFirst(m2, d2 - 1, 1), `You skipped ${m2 + 1}. The number after ${m2} is ${m2 + 1}. Say ${said}.`]
+    ]), { pic: { line: { lo: 0, hi: 20, from: m2 } } }),
+    step('S2', 'Count up to subtract', `You said ${said}. So what is ${sub(b2, m2)}?`, d2, wrongsOf(d2, [
+      [d2 + 1, `Count the numbers you said: ${said}. That is ${d2} numbers. The answer is ${d2}.`],
+      [b2, `${b2} is where you stopped. The answer is how many numbers you said: ${d2}.`]
+    ]), { explain: { line: { lo: 0, hi: 20, from: m2, jumps: d2, dir: 1 } } }),
     watch('W2', sk, 'Fact families', [
       `${add(f1, g1)} = ${c1}.`,
       `So ${sub(c1, g1)} = ${f1}. And ${sub(c1, f1)} = ${g1}.`,
       `The same three numbers: ${Math.min(f1, g1)}, ${Math.max(f1, g1)} and ${c1}.`,
-      'Adding and taking away use the same three numbers. They are a fact family.'
+      'You can add and take away with the same three numbers. They are a fact family.'   // FK 2.3 (was 4.0)
     ], { bond: { a: f1, b: g1, c: c1 } }),
-    steps[2], steps[3]
-  ];
-  return [
-    newWay(sk),
-    watch('W1', sk, 'Count up with dots', [
-      `${sub(b1, m1)}. Start with ${m1} red dots.`,
-      `Add green dots until there are ${b1}. Count up as you add. Say ${seqUp(m1, d1)}.`,
-      `You added ${d1} dots. So ${sub(b1, m1)} = ${d1}.`
-    ], { frames: { n: m1, up: b1 } }),
-    steps[0], steps[1],
-    watch('W2', sk, 'Fact families with dots', [
-      `${f1} red dots and ${g1} blue dots make ${c1} dots. ${add(f1, g1)} = ${c1}.`,
-      `Take away the ${g1} blue dots. ${f1} red dots are left. ${sub(c1, g1)} = ${f1}.`,
-      `Take away the ${f1} red dots. ${g1} blue dots are left. ${sub(c1, f1)} = ${g1}.`,
-      'The same three numbers make a fact family.'
-    ], { frames: { a: f1, b: g1 } }),
-    steps[2], steps[3]
+    step('S3', sk, `${add(f2, g2)} = ${c2}. So what is ${sub(c2, g2)}?`, f2, wrongsOf(f2, [
+      [g2, `${g2} is the number you take away. ${add(f2, g2)} = ${c2}, so ${sub(c2, g2)} = ${f2}.`],
+      [c2 + g2, `You added. The minus sign means take away. ${add(f2, g2)} = ${c2}, so ${sub(c2, g2)} = ${f2}.`]
+    ]), { pic: { bond: { a: f2, b: g2, c: c2, ask: 'a' } }, explain: { bond: { a: f2, b: g2, c: c2 } } }),
+    step('S4', sk, `${add(f2, g2)} = ${c2}. So what is ${sub(c2, f2)}?`, g2, wrongsOf(g2, [
+      [f2, `${f2} is the number you take away. ${add(f2, g2)} = ${c2}, so ${sub(c2, f2)} = ${g2}.`],
+      [Math.abs(f2 - g2), `Use the adding fact. ${add(f2, g2)} = ${c2}, so ${sub(c2, f2)} = ${g2}.`],
+      [g2 + 1, `Use the adding fact. ${add(f2, g2)} = ${c2}, so ${sub(c2, f2)} = ${g2}.`]
+    ]), { pic: { bond: { a: f2, b: g2, c: c2, ask: 'b' } }, explain: { bond: { a: f2, b: g2, c: c2 } } })
   ];
 }
 
 /* ═══ THE LESSONS ═══
-   teach(skill, ctx) → the watch + step items of one version (new numbers each version, a new picture on 2 and 4:
-                        teachCountOn … teachThinkAdd above; a lesson not changed yet ignores ctx and teaches the same in each)
+   teach(skill, ctx) → the watch + step items of one version: the lesson's one method, new numbers each version
+                        (teachCountOn … teachThinkAdd above; a lesson not changed yet ignores ctx and teaches the same in each)
    parts       → [{ pool, build, n, filter? }] scored questions, in order
    pre         → { pool, build } for 🎯 Show what you know (5) — none on the facts check */
 const LESSONS = [

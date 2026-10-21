@@ -1422,8 +1422,8 @@ const app = {
     this.kindsSeen     = {};   // reading: the kinds of mistakes made in this try (a second one = a repeat)
 
     // NEW NUMBERS ON A RETRY (Marcos 10/16): LAB_<id>_V holds the versions (data/*.js): try 1 → version 1,
-    // try 2 → version 2 … then round again. "Try" = finished tries, on any Chromebook (TRIES_KEY). Versions 2 and 4 teach
-    // with a new picture (Marcos 10/21). The version rides in the start event.
+    // try 2 → version 2 … then round again. "Try" = finished tries, on any Chromebook (TRIES_KEY). Each version teaches
+    // the same way with a worked example of its own (Marcos 10/21: "one method, new numbers"). The version rides in the start event.
     const versions = window['LAB_' + form + '_V'];
     const triesDone = (reviewMode || SHARE_MODE) ? 0 : (getFormAttempts(this.studentName)[form] || 0);
     this.triesAt = triesDone;
