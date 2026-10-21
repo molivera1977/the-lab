@@ -33,7 +33,7 @@
 const SHARE_MODE    = !!window.SHARE_MODE;   // set by share.js — a visitor's link, never a student's
 const LAB_OPEN      = true;    // false = students locked out; Teacher Access still works
 const ANY_ORDER     = false;   // true = no gates at all
-const PASS_PCT      = 70;      // lessons that are not facts (later strands)
+const PASS_PCT      = 75;      // every other lesson (place value, rounding, reading) — Marcos 10/20: "75 for LAB lessons and 90 for math facts"
 const FACTS_PASS_PCT = 90;     // facts lessons — Marcos 10/17: "90% for facts only"
 const PRE_COUNT     = 5;       // 🎯 Show what you know
 const MINE_MAX      = 4;       // at most this many of the student's own missed facts added to one try
@@ -419,34 +419,7 @@ function noteFact(name, q, pick, correct) {
   return { repeat };
 }
 
-/* ── READING: each student's QPS phonics stop (the QPS Literacy Hub, same site) ──
-   The stop comes from the hub's own TRACKS list (qps-literacy-hub/login.js — the one place Mr. O changes a
-   track), read the same way the dashboard reads it. Stars and the last Practice Check come from the hub's own
-   record on this device (qps_practice_v1:<name>). Tapping the card opens the stop in a new tab, signed in
-   (the hub reads qps_student_v1 from session storage, which a tab opened from this one starts with). */
-const QPS_URL = '../qps-literacy-hub/';
-const QPS_READY = 80;
-const QPS_STOP_NAMES = { '1': 'Letter sounds', '2': 'Short vowels', '3': 'sh ch th', '4': 'Blends', '5': 'Silent e', '6': 'Bossy R',
-  '7': 'Tricky letters', '8': 'Vowel teams', '9a': 'Two-part words', '9b': 'Three-part words', '9c': 'Four-part words', '10': 'Word parts' };
-let qpsTracks = null, qpsTracksTried = false;
-async function loadQpsTracks() {
-  if (qpsTracksTried) return qpsTracks;
-  qpsTracksTried = true;
-  try {
-    const src = await fetch(QPS_URL + 'login.js', { cache: 'no-store' }).then(r => (r.ok ? r.text() : ''));
-    const block = (/const TRACKS = \{([\s\S]*?)\};/.exec(src) || [])[1];
-    if (!block) return null;
-    qpsTracks = {};
-    block.split('\n').forEach(line => {
-      const m = /^\s*"([^"]+)":\s*(?:"([^"]+)"|null)/.exec(line);
-      if (m) qpsTracks[m[1]] = m[2] || null;
-    });
-  } catch (e) { qpsTracks = null; }
-  return qpsTracks;
-}
-function qpsRecord(name, stop) {
-  try { const store = JSON.parse(localStorage.getItem('qps_practice_v1:' + name) || '{}') || {}; return store[stop] || null; } catch (e) { return null; }
-}
+/* 📖 QPS (the QPS Literacy Hub) only FEEDS the Lab: qps-feed.js reads it and shows the card at the end of the plan */
 
 /* ── ROSTER ─────────────────────────────────────────── */
 const ROSTER = [
@@ -947,27 +920,7 @@ function applyFormLocks(name, state) {
     card.appendChild(grid);
     box.appendChild(card);
   });
-  readingCard(box, name);
-}
-
-/* 📖 Reading: the student's QPS stop (only for a student on a plan, with a stop in the hub's TRACKS) */
-function readingCard(box, name) {
-  const stop = qpsTracks && !seesAll(name) ? qpsTracks[name] : undefined;
-  if (!stop || !QPS_STOP_NAMES[stop]) return;
-  const rec = qpsRecord(name, stop);
-  const stars = (rec && rec.stars) || 0;
-  const card = document.createElement('div');
-  card.className = 'step-card strand-card strand-rd';
-  card.innerHTML = `<span class="step-label">📖 Reading: Phonics</span>`;
-  const b = document.createElement('button');
-  b.className = 'start-btn lesson-btn reading-btn';
-  b.id = 'btn-reading';
-  const last = rec && rec.lastScore != null ? ` · last check ${rec.lastScore}%${rec.lastScore >= QPS_READY ? ' ✅ ready for Mr. O' : ''}` : ' · no check yet';
-  b.innerHTML = `📖 Stop ${stop} · ${QPS_STOP_NAMES[stop]}<span class="form-btn-sub">${'★★★'.slice(0, stars)}${'☆☆☆'.slice(0, 3 - stars)}${last} · opens in a new tab</span>`;
-  b.onclick = () => app.openReading(stop);
-  card.appendChild(b);
-  card.insertAdjacentHTML('beforeend', '<p class="form-note">Your phonics practice is in the QPS Literacy Hub. When you are done, close that tab to come back here.</p>');
-  box.appendChild(card);
+  if (typeof qpsCard === 'function') qpsCard(box, name);   // 📖 QPS progress, read-only (qps-feed.js)
 }
 
 /* ── SPEAK DIRECTIONS ───────────────────────────────── */
@@ -1247,7 +1200,7 @@ const app = {
     if (seesAll(name)) { applyFormLocks(name); this.checkResume(); return; }
     applyFormLocks(name, planFor(name) ? '' : 'checking');
     if (planFor(name)) this.checkResume();
-    loadQpsTracks().then(() => { if (this.studentName === name && planFor(name)) applyFormLocks(name); });
+    if (typeof loadQpsFeed === 'function') loadQpsFeed(name).then(() => { if (this.studentName === name && planFor(name)) applyFormLocks(name); });   // 📖 QPS (qps-feed.js)
     loadHistory(name).then(got => {
       if (this.studentName !== name) return;
       applyFormLocks(name, got === 'offline' ? 'offline' : '');
@@ -1345,14 +1298,6 @@ const app = {
       return;
     }
     this.startSession(form);
-  },
-
-  /* 📖 open the student's QPS stop in a new tab, already signed in there */
-  openReading(stop) {
-    if (!this.studentName || seesAll(this.studentName) || !planFor(this.studentName)) return;
-    try { sessionStorage.setItem('qps_student_v1', this.studentName); } catch (e) {}
-    const w = window.open(QPS_URL, '_blank');
-    if (!w) location.href = QPS_URL;   // a blocked pop-up: open it here instead
   },
 
   /* ── TEACHER REVIEW MODE ── */
