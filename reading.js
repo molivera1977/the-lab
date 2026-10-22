@@ -129,11 +129,15 @@ function item(form, it, story, sKey, extra) {
   return { ...base, type: 'mc', q: it.q, choices: p.choices, answer: p.answer, slips: p.slips, explanation: p.explanation, ...(it.evidence ? { evidence: true } : {}) };
 }
 
-/* Every story of a lesson by key: RC1-T (teaching), RC1-v1-P (Show what you know), RC1-v1-A / -B (Your turn) */
+/* Every story of a lesson by key: RC1-T (teaching), RC1-v1-P (Show what you know), RC1-v1-A / -B (Your turn).
+   A version with a teaching story of its own (v.teach: Level 2, a new worked example every try — Marcos 10/21 "one
+   method, new numbers") keeps it as RD1-v1-T; a lesson with one teaching story for all versions keeps RC1-T. */
+const teachOf = (L, v) => (v && v.teach) || L.teach;
 function storiesOf(form, L) {
   const out = {};
   if (L.teach && L.teach.story) out[storyKey(form, 'T')] = L.teach.story;
   (L.versions || []).forEach((v, vi) => {
+    if (v.teach && v.teach.story) out[storyKey(form, `v${vi + 1}-T`)] = v.teach.story;
     if (v.pre && v.pre.story) out[storyKey(form, `v${vi + 1}-P`)] = v.pre.story;
     (v.turn || []).forEach((t, ti) => { out[storyKey(form, `v${vi + 1}-${'AB'[ti] || ti}`)] = t.story; });
   });
@@ -150,12 +154,13 @@ function bankOf(form, L, vi) {
     const k = storyKey(form, `v${vi + 1}-P`);
     v.pre.items.forEach((it, i) => out.push(item(form, { ...it, id: it.id || `P${i + 1}` }, v.pre.story, k, { kind: 'pre' })));
   }
-  if (L.teach) {
-    const k = storyKey(form, 'T');
-    (L.teach.flow || []).forEach((f, i) => {
+  const T = teachOf(L, v);
+  if (T) {
+    const k = storyKey(form, v.teach ? `v${vi + 1}-T` : 'T');
+    (T.flow || []).forEach((f, i) => {
       if (f.kind === 'watch') out.push({ id: `${form}-${f.id || 'W' + (i + 1)}`, kind: 'watch', skill: 'Lab step', story: k,
         title: f.title, text: (f.lines || []).join('\n'), lit: (f.lit || []).slice() });
-      else out.push(item(form, { ...f, id: f.id || `S${i + 1}` }, L.teach.story, k, { kind: 'step', skill: 'Lab step' }));
+      else out.push(item(form, { ...f, id: f.id || `S${i + 1}` }, T.story, k, { kind: 'step', skill: 'Lab step' }));
     });
   }
   (v.turn || []).forEach((t, ti) => {
@@ -186,7 +191,7 @@ function install(win) {
   });
 }
 
-const api = { KINDS, KIND_LABEL, KIND_WATCH, PART_B_Q, split, stats, syl, storiesOf, bankOf, pointsOf, install, hotArea, storyKey };
+const api = { KINDS, KIND_LABEL, KIND_WATCH, PART_B_Q, split, stats, syl, storiesOf, bankOf, pointsOf, install, hotArea, storyKey, teachOf };
 if (typeof module === 'object' && module.exports) module.exports = api;
 else { root.LabReading = api; install(root); }
 })(typeof self !== 'undefined' ? self : this);

@@ -65,7 +65,11 @@ const STRANDS = [
   { id: 'bp', icon: '🚀', name: 'Place Value: Big Numbers', lessons: ['BP1', 'BP2', 'BP3', 'BP4', 'BP5'], after: 'pv' },
   { id: 'br', icon: '🗺️', name: 'Rounding: Big Numbers', lessons: ['BR1', 'BR2', 'BR3', 'BR4', 'BR5'], after: 'ro' },
   // Reading for Meaning (Marcos 10/20: "build a comprehension strand"): stands alone, no math gate
-  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3'] }
+  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3'] },
+  // Level 2 (Marcos 10/22: "growth opportunities to kids at all levels not just my low"): the same test formats on grade
+  // 4–5 stories. It waits for Level 1 only when Level 1 is on the student's plan too (lessonWait). The id is letters only:
+  // the plan row is read with /plan=([a-z,]+)/, so "rc2" would be read as "rc".
+  { id: 'rd', icon: '🔭', name: 'Reading for Meaning: Level 2', lessons: ['RD1', 'RD2', 'RD3', 'RD4'], after: 'rc' }
 ];
 const LESSONS = {
   AS1: { title: 'Count On to Add',                  icon: '🦘', facts: true },
@@ -109,7 +113,11 @@ const LESSONS = {
   // the passage, the questions and the stories: data/rcN.js, read by reading.js; the screens: reading-ui.js
   RC1: { title: 'Find the Proof',                   icon: '🔍', reading: true, hints: false },
   RC2: { title: 'Part A and Part B',                icon: '🅰️', reading: true, hints: false },
-  RC3: { title: 'Click the Sentences',              icon: '👆', reading: true, hints: false }
+  RC3: { title: 'Click the Sentences',              icon: '👆', reading: true, hints: false },
+  RD1: { title: 'Find the Proof: Level 2',          icon: '🔍', reading: true, hints: false },
+  RD2: { title: 'Part A and Part B: Level 2',       icon: '🅰️', reading: true, hints: false },
+  RD3: { title: 'Click the Sentences: Level 2',     icon: '👆', reading: true, hints: false },
+  RD4: { title: 'Choose Two',                       icon: '✌️', reading: true, hints: false }
 };
 /* WHAT EACH LESSON HELPS WITH, in the student's words (Marcos 10/20: "say the titles of each lesson so the kids know
    what they are working on" · "I want them to know what they need help in"). A verb phrase: the plan says "You will
@@ -135,7 +143,9 @@ const LESSON_GOALS = {
   BR3: 'round to the place the question names', BR4: 'find the number that rounds to a number',
   BR5: 'show what you know about rounding big numbers',
   RC1: 'find the ONE sentence that proves an idea', RC2: 'answer Part A, then prove your answer in Part B',
-  RC3: 'click the sentences that show an idea'
+  RC3: 'click the sentences that show an idea',
+  RD1: 'find the sentence that BEST proves an idea in a longer story', RD2: 'answer Part A, then prove it in Part B, in a longer story',
+  RD3: 'click the sentences that BEST show an idea in a longer story', RD4: 'pick the TWO answers that are both right'
 };
 Object.entries(LESSON_GOALS).forEach(([id, g]) => { if (LESSONS[id]) LESSONS[id].goal = g; });
 const goalSentence = id => { const g = (LESSONS[id] || {}).goal || ''; return g ? g[0].toUpperCase() + g.slice(1) + '.' : ''; };
@@ -143,7 +153,7 @@ const goalSentence = id => { const g = (LESSONS[id] || {}).goal || ''; return g 
 const KID_SKILL = {
   'Evidence selection': 'finding the sentence that proves an idea', 'Supporting detail': 'finding the sentence that proves your answer',
   'Character inference': 'figuring out what a character is like', 'Drawing conclusions': 'putting clues together',
-  'Character feelings': 'figuring out how a character feels'
+  'Character feelings': 'figuring out how a character feels', 'Theme': 'figuring out the lesson of a story'
 };
 const kidSkill = skill => { const base = String(skill || '').split(' · ')[0].replace(/ \(check\)$/, '').trim(); return KID_SKILL[base] || base; };
 // "RC2-Q01.B" → "Question 1, Part B" (a student never sees a code)
@@ -858,7 +868,7 @@ function lessonWait(name, form) {
    reading lesson, the next math lesson (the first one in plan order when the student has done neither yet). A lesson
    missed is still unpassed, so it comes back on its turn. The plan's ▶ Continue button and the end screen's Next both
    follow this. */
-const isReadingStrand = st => !!st && st.id === 'rc';
+const isReadingStrand = st => !!st && st.lessons.some(id => LESSONS[id] && LESSONS[id].reading);   // Level 1 and Level 2
 function lastLessonDone(name, ids) {
   const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
   const mine = scores.filter(s => s.name === name && s.done && !s.restored && ids.includes(s.form));

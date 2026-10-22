@@ -21,6 +21,11 @@
      Part A's notes never quote Part B's answer; two questions on one story never share 2+ wrong choices
    - why lines, notes and watch lines read at FK ≤ 3.0 together per version; questions at FK ≤ 4.0
    - no student first names, no blanks (____), the right answer is not the longest choice most of the time
+   LEVEL 2 (RD1 …, Marcos 10/22: "growth opportunities to kids at all levels"): grade 4–5 stories (LEVEL2_RANGE), and
+   - every version has its OWN teaching story and worked example, taught the same way (one method, new stories)
+   - close wrong choices: a "which sentence" question or Part B has a wrong sentence from the proof's own paragraph;
+     Part A and Choose TWO have a wrong choice that is partly right (toofar / onedetail)
+   - click: a pick-2 list is 6 sentences, a pick-2 paragraph has 6 or more; Choose TWO has exactly 5 choices
 ═══════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -36,7 +41,16 @@ const STORY_RANGE = {
   turn:  { fk: [1.8, 2.8], words: [100, 180] }
 };
 // lessons whose Your-turn stories need more sentences (four click questions on one story)
-const TURN_RANGE = { RC3: { fk: [1.8, 2.8], words: [130, 210] }, RC8: { fk: [2.8, 3.3], words: [130, 220] } };
+const TURN_RANGE = { RC3: { fk: [1.8, 2.8], words: [130, 210] }, RC8: { fk: [2.8, 3.3], words: [130, 220] }, RD3: { fk: [4.0, 5.0], words: [320, 450] } };
+// Level 2 (RD): grade 4–5 stories. The class's IAB-style practice forms measure FK 3.6–4.6 at 630–735 words.
+const LEVEL2_RANGE = {
+  teach: { fk: [3.5, 4.5], words: [180, 280] },
+  pre:   { fk: [4.0, 5.0], words: [180, 280] },
+  turn:  { fk: [4.0, 5.0], words: [280, 400] }
+};
+const isLevel2 = form => /^RD\d+$/.test(form);
+const rangeOf = (form, part) => (part === 'turn' && TURN_RANGE[form]) || (isLevel2(form) ? LEVEL2_RANGE : STORY_RANGE)[part];
+const CLOSE_KINDS = new Set(['toofar', 'onedetail']);   // a partly-right wrong choice
 const KNOWN_KINDS = new Set(Object.keys(R.KINDS));
 const POSITION_RE = /\b(first|second|third|fourth|last|top|bottom) (choice|answer|option)\b|\b(choice|answer|option) [A-E]\b/i;
 
@@ -44,7 +58,7 @@ const POSITION_RE = /\b(first|second|third|fourth|last|top|bottom) (choice|answe
 function loadLessons(dir) {
   const box = { window: {} };
   vm.createContext(box);
-  fs.readdirSync(dir).filter(f => /^rc\d+\.js$/.test(f)).sort().forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), box));
+  fs.readdirSync(dir).filter(f => /^r[cd]\d+\.js$/.test(f)).sort().forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), box));
   return box.window.LAB_RC || {};
 }
 
@@ -76,6 +90,12 @@ function otherTitles() {
 }
 const norm = t => String(t || '').toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
+/* ── Level 2: which paragraph a sentence is in (-1 = none) ── */
+const paraOf = (story, sentence) => (story.paragraphs || []).findIndex(p => R.split(p).includes(sentence));
+// a wrong sentence from the proof's own paragraph: true, about the idea, but not the proof
+const hasCloseWrong = (story, right, wrongs) => { const at = paraOf(story, right); return at >= 0 && wrongs.some(w => paraOf(story, w) === at); };
+const hasPartlyRight = c => (c.kinds || []).some(k => CLOSE_KINDS.has(k));
+
 /* ── 7-word pieces, for the giveaway check ── */
 const words7 = t => { const w = String(t || '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').split(/\s+/).filter(Boolean);
   const out = new Set(); for (let k = 0; k + 7 <= w.length; k++) out.add(w.slice(k, k + 7).join(' ')); return out; };
@@ -95,7 +115,8 @@ function checkAll(LESSONS, only, others) {
     else titles.set(t, at);
     if (others.has(t)) fail(`${at}: title "${story.title}" is already used by ${others.get(t)}`);
     const paras = story.paragraphs || [];
-    if (paras.length < 4 || paras.length > 8) fail(`${at} "${story.title}": ${paras.length} paragraphs (want 4–8)`);
+    const maxP = isLevel2(form) ? 10 : 8;
+    if (paras.length < 4 || paras.length > maxP) fail(`${at} "${story.title}": ${paras.length} paragraphs (want 4–${maxP})`);
     const st = R.stats(paras);
     const ok = st.fk >= range.fk[0] && st.fk <= range.fk[1] && st.words >= range.words[0] && st.words <= range.words[1];
     if (st.fk < range.fk[0] || st.fk > range.fk[1]) fail(`${at} "${story.title}": FK ${st.fk.toFixed(2)} (want ${range.fk[0]}–${range.fk[1]})`);
@@ -142,6 +163,8 @@ function checkAll(LESSONS, only, others) {
       if (r.longestIsRight) acc.longest++;
       acc.mc++;
       if (it.evidence && !/\bBEST\b/.test(it.q)) fail(`${iat}: a "which sentence" question says BEST, like the test`);
+      if (isLevel2(form) && !acc.step && it.evidence && !hasCloseWrong(story, it.choices[0], it.choices.slice(1)))
+        fail(`${iat}: Level 2 needs a close wrong choice: a sentence from the proof's own paragraph that does not prove the idea`);
       if (it.why) acc.whys.push(it.why);
       acc.asked.push([it.id, it]);
       if (it.evidence) acc.keys.push([it.id, it.choices[0]]);
@@ -154,6 +177,10 @@ function checkAll(LESSONS, only, others) {
       acc.qs.push(it.a.q);
       const ra = choiceCheck(iat + '.A', it.a, sentences, false, acc.notes);
       const rb = choiceCheck(iat + '.B', it.b, sentences, true, acc.notes);
+      if (isLevel2(form) && !acc.step) {
+        if (!hasCloseWrong(story, it.b.choices[0], it.b.choices.slice(1))) fail(`${iat}.B: Level 2 needs a close wrong choice: a sentence from the proof's own paragraph that does not prove the answer`);
+        if (!hasPartlyRight(it.a)) fail(`${iat}.A: Level 2 needs a partly-right wrong choice in Part A (kind toofar or onedetail)`);
+      }
       // both parts count: a child can learn "pick the longest sentence" from Part B just as well
       if (ra.longestIsRight) acc.longest++;
       if (rb.longestIsRight) acc.longest++;
@@ -178,6 +205,10 @@ function checkAll(LESSONS, only, others) {
       const area = R.hotArea(story, it);
       const want = pick === 1 ? 4 : 5;
       if (area.length < want) fail(`${iat}: only ${area.length} sentences to click (want ${want} or more)`);
+      if (isLevel2(form) && !acc.step && pick === 2) {
+        if (Array.isArray(it.list) && it.list.length !== 6) fail(`${iat}: a Level 2 pick-2 list has 6 sentences (it has ${it.list.length})`);
+        if (it.para != null && area.length < 6) fail(`${iat}: a Level 2 pick-2 paragraph has 6 or more sentences (it has ${area.length})`);
+      }
       if (Array.isArray(it.list)) {
         it.list.forEach(s => { if (!sentences.includes(s)) fail(`${iat}: list sentence is not an exact sentence of the story: "${s}"`); });
         const order = it.list.map(s => sentences.indexOf(s));
@@ -217,8 +248,19 @@ function checkAll(LESSONS, only, others) {
         if (!(k && KNOWN_KINDS.has(k))) fail(`${iat}: wrong choice ${i + 1} has no kind (a note is extra, the kind is required)`);
         if (n) acc.notes.push(n);
       });
+      if (isLevel2(form) && !acc.step) {
+        if (choices.length !== pick + 3) fail(`${iat}: Level 2 Choose ${pick === 2 ? 'TWO' : pick} has ${pick + 3} choices (it has ${choices.length})`);
+        if (!hasPartlyRight(it)) fail(`${iat}: Level 2 needs a partly-right wrong choice (kind toofar or onedetail)`);
+      }
       if (!it.why) fail(`${iat}: no why`); else acc.whys.push(it.why);
-      acc.asked.push([it.id, { choices, answer: 0 }]);
+      if (it.why && POSITION_RE.test(it.why)) fail(`${iat}: why names a choice by position`);
+      choices.slice(0, pick).forEach(a => acc.keys.push([it.id, a]));
+      acc.asked.push([it.id, { choices, answer: 0, _ms: pick }]);
+      // Choose TWO: the right answers are not the longest choices (or the shortest) — a child can learn that trick too
+      const len = x => String(x).length, rights = choices.slice(0, pick), wrongs = choices.slice(pick);
+      if (rights.every(r => wrongs.every(w => len(w) < len(r)))) acc.longest++;
+      if (rights.every(r => wrongs.every(w => len(w) > len(r)))) fail(`${iat}: both right answers are shorter than every wrong one`);
+      acc.mc++;
       allText.push([iat, it.q], ...choices.map(c => [iat, c]));
     } else fail(`${iat}: unknown type "${it.type}"`);
     return shape;
@@ -226,7 +268,7 @@ function checkAll(LESSONS, only, others) {
 
   // per story: giveaways + shared wrong choices + list overlap
   const storyItemsCheck = (at, acc) => {
-    const wrongOf = ([, c]) => new Set((c.choices || []).filter((x, i) => (c._hot ? !c._hot.includes(x) : i !== 0)));
+    const wrongOf = ([, c]) => new Set((c.choices || []).filter((x, i) => (c._hot ? !c._hot.includes(x) : i >= (c._ms || 1))));
     acc.asked.forEach((a, i) => acc.asked.slice(i + 1).forEach(b => {
       if (a[1]._hot || b[1]._hot) return;          // click areas share the story's sentences by design
       const shared = [...wrongOf(a)].filter(x => wrongOf(b).has(x));
@@ -254,34 +296,54 @@ function checkAll(LESSONS, only, others) {
 
   const newAcc = () => ({ qs: [], whys: [], notes: [], asked: [], keys: [], lists: [], items: [], longest: 0, mc: 0, step: false });
 
-  Object.keys(LESSONS).sort((a, b) => Number(a.slice(2)) - Number(b.slice(2))).forEach(form => {
+  Object.keys(LESSONS).sort((a, b) => a.slice(0, 2).localeCompare(b.slice(0, 2)) || Number(a.slice(2)) - Number(b.slice(2))).forEach(form => {
     if (only.length && !only.includes(form)) return;
     const L = LESSONS[form];
-    if (!/^RC\d+$/.test(form)) { fail(`${form}: a reading lesson is named RC + a number`); return; }
-    const turnRange = TURN_RANGE[form] || STORY_RANGE.turn;
+    if (!/^R[CD]\d+$/.test(form)) { fail(`${form}: a reading lesson is named RC or RD + a number`); return; }
+    const turnRange = rangeOf(form, 'turn');
 
-    // ── teaching ──
-    if (!L.teach || !L.teach.story) fail(`${form}: no teach.story`);
-    else {
-      const tsent = storyCheck(form, `${form} teach`, L.teach.story, STORY_RANGE.teach);
+    // ── teaching: one story for every version (Level 1), or a new one in every version (Level 2: v.teach) ──
+    // returns the flow's shape, so every version can be held to the same teaching steps
+    const teachCheck = (at, T) => {
+      if (!T || !T.story) { fail(`${at}: no teaching story`); return ''; }
+      const tsent = storyCheck(form, at, T.story, rangeOf(form, 'teach'));
       const acc = newAcc(); acc.step = true;
-      const flow = L.teach.flow || [];
-      if (!flow.some(f => f.kind === 'watch')) fail(`${form}: teach.flow has no watch screen`);
+      const flow = T.flow || [];
+      if (!flow.some(f => f.kind === 'watch')) fail(`${at}: the teaching flow has no watch screen`);
       const lines = [];
       flow.forEach((f, i) => {
-        const at = `${form} teach ${f.id || '#' + (i + 1)}`;
+        const fat = `${at} ${f.id || '#' + (i + 1)}`;
         if (f.kind === 'watch') {
-          if (!f.title) fail(`${at}: watch has no title`);
-          if (!Array.isArray(f.lines) || !f.lines.length) fail(`${at}: watch has no lines`);
-          (f.lines || []).forEach(l => { lines.push(l); allText.push([at, l]); });
-          (f.lit || []).forEach(s => { if (!tsent.includes(s)) fail(`${at}: lit sentence is not an exact sentence of the teaching story: "${s}"`); });
+          if (!f.title) fail(`${fat}: watch has no title`);
+          if (!Array.isArray(f.lines) || !f.lines.length) fail(`${fat}: watch has no lines`);
+          (f.lines || []).forEach(l => { lines.push(l); allText.push([fat, l]); });
+          (f.lit || []).forEach(s => { if (!tsent.includes(s)) fail(`${fat}: lit sentence is not an exact sentence of the teaching story: "${s}"`); });
         } else if (f.kind === 'step') {
-          itemCheck(form, at, f, L.teach.story, tsent, acc);
-        } else fail(`${at}: kind must be watch or step`);
+          itemCheck(form, fat, f, T.story, tsent, acc);
+        } else fail(`${fat}: kind must be watch or step`);
       });
       const lf = R.stats(lines).fk;
-      if (lf > 3.0) fail(`${form} teach: the watch lines read at ${lf.toFixed(2)} (want ≤ 3.0)`);
-      report.push(`${form} teach: watch lines FK ${lf.toFixed(2)}, ${R.stats(lines).words} words`);
+      if (lf > 3.0) fail(`${at}: the watch lines read at ${lf.toFixed(2)} (want ≤ 3.0)`);
+      // Level 2: the steps' why lines and notes are the teaching voice too
+      const sw = R.stats([...acc.whys, ...acc.notes]).fk;
+      if (isLevel2(form) && acc.whys.length && sw > 3.0) fail(`${at}: the steps' why lines and notes read at ${sw.toFixed(2)} (want ≤ 3.0)`);
+      report.push(`${at}: watch lines FK ${lf.toFixed(2)}, ${R.stats(lines).words} words${isLevel2(form) ? ` · steps' whys FK ${sw.toFixed(2)}` : ''}`);
+      return JSON.stringify(flow.map(f => [f.kind, f.id, f.type || '', f.pick || 0, JSON.stringify(f.skill || '')]));
+    };
+    const own = (L.versions || []).filter(v => v.teach).length;
+    if (isLevel2(form) && own !== (L.versions || []).length) fail(`${form}: a Level 2 lesson has a teaching story in EVERY version (a new worked example each try); ${own} of ${(L.versions || []).length} have one`);
+    else if (own && own !== (L.versions || []).length) fail(`${form}: ${own} of ${(L.versions || []).length} versions have their own teaching story (all or none)`);
+    if (own && L.teach) fail(`${form}: has both one teaching story and one per version (pick one)`);
+    if (!own) teachCheck(`${form} teach`, L.teach);
+    else {
+      const shapes = L.versions.map((v, vi) => teachCheck(`${form} v${vi + 1} teach`, v.teach));
+      shapes.forEach((sh, vi) => { if (vi && sh !== shapes[0]) fail(`${form} v${vi + 1} teach: its steps differ from version 1's (the same method every try: same screens, same step types)`); });
+      const seen = new Map();
+      L.versions.forEach((v, vi) => {
+        const k = JSON.stringify((v.teach && v.teach.story && v.teach.story.paragraphs) || []);
+        if (seen.has(k)) fail(`${form} v${vi + 1} teach: the same teaching story as version ${seen.get(k)} (a retry needs a new worked example)`);
+        else seen.set(k, vi + 1);
+      });
     }
 
     // ── versions ──
@@ -292,7 +354,7 @@ function checkAll(LESSONS, only, others) {
       const vat = `${form} v${vi + 1}`;
       const shapes = [];
       const vacc = newAcc();
-      const parts = [['pre', v.pre, STORY_RANGE.pre], ...((v.turn || []).map((t, ti) => [`turn ${'AB'[ti]}`, t, turnRange]))];
+      const parts = [['pre', v.pre, rangeOf(form, 'pre')], ...((v.turn || []).map((t, ti) => [`turn ${'AB'[ti]}`, t, turnRange]))];
       if (!v.pre) fail(`${vat}: no pre`);
       if ((v.turn || []).length !== 2) fail(`${vat}: ${(v.turn || []).length} turn stories (want 2)`);
       parts.forEach(([name, part, range]) => {
@@ -362,6 +424,9 @@ function plantsFor(LESSONS, others, form) {
   const firstOf = (L, type) => { for (const v of L.versions) for (const t of [v.pre, ...v.turn]) for (const it of t.items) if (it.type === type) return { it, story: t.story }; return null; };
   const firstStoryWith2 = L => { for (const v of L.versions) for (const t of v.turn) if (t.items.length >= 2) return t; return null; };
   const aChoiceSet = L => { const x = firstOf(L, 'mc') || firstOf(L, 'ebsr'); return x && (x.it.type === 'mc' ? x.it : x.it.a); };
+  const level2 = () => { if (!/^RD\d+$/.test(form)) throw new Error('a Level 2 rule'); };
+  const firstEvidence = L => { for (const v of L.versions) for (const t of [v.pre, ...v.turn]) for (const it of t.items) if (it.type === 'mc' && it.evidence) return { it, story: t.story }; return null; };
+  const paraOfP = (story, t) => story.paragraphs.findIndex(p => R.split(p).includes(t));
   // [name, plant, the message it must cause]
   const P = [
     ['answer not a sentence', L => { const x = firstOf(L, 'mc') || firstOf(L, 'ebsr'); if (x.it.type === 'mc') { x.it.evidence = true; x.it.choices[0] = 'This sentence is nowhere in the story.'; } else x.it.b.choices[0] = 'This sentence is nowhere in the story.'; }, /not an exact sentence/],
@@ -371,7 +436,7 @@ function plantsFor(LESSONS, others, form) {
     ['no why', L => { delete aChoiceSet(L).why; }, /no why/],
     ['why names a position', L => { aChoiceSet(L).why = 'The first choice is right.'; }, /by position/],
     ['story too hard', L => { L.versions[0].turn[0].story.paragraphs = L.versions[0].turn[0].story.paragraphs.map(p => p + ' Extraordinarily complicated vocabulary, unquestionably overwhelming understandably bewildered elementary participants.'); }, /FK \d+\.\d+ \(want/],
-    ['story too short', L => { L.versions[0].pre.story.paragraphs = L.versions[0].pre.story.paragraphs.slice(0, 1); }, /paragraphs \(want 4–8\)/],
+    ['story too short', L => { L.versions[0].pre.story.paragraphs = L.versions[0].pre.story.paragraphs.slice(0, 1); }, /paragraphs \(want 4–\d+\)/],
     ['title used twice', L => { L.versions[1].pre.story.title = L.versions[0].pre.story.title; }, /also used at/],
     ['title from another site', L => { L.versions[0].pre.story.title = [...others.keys()][0] || L.teach.story.title; }, others.size ? /already used by/ : /also used at/],
     // swap one word for a name / a blank, so the reading level barely moves and only the name/blank check can catch it
@@ -394,7 +459,26 @@ function plantsFor(LESSONS, others, form) {
     ['click answers do not match the pick', L => { const it = firstOf(L, 'hot').it; it.pick = (it.pick || 1) === 1 ? 2 : 1; }, /answers for pick|says "Click on the/],
     ['click question not in the test words', L => { const it = firstOf(L, 'hot').it; it.q = it.q.replace(/Click on the (TWO )?sentences?/, 'Choose the line'); }, /like the test/],
     ['why lines too hard', L => { L.versions[0].turn.forEach(t => t.items.forEach(it => { const c = it.type === 'ebsr' ? it.a : it; c.why = 'Consequently, comprehensive understanding necessitates considerable deliberation regarding characteristics.'; })); }, /why lines read at/],
-    ['right answer always longest', L => { L.versions[0].turn.forEach(t => t.items.forEach(it => { const c = it.type === 'ebsr' ? it.a : it.type === 'mc' ? it : null; if (c) { c.choices[0] = c.choices[0] + ' And that was a very long and important thing to see.'; c.evidence = false; } })); }, /longest choice/]
+    // every choice set of version 1 (Part A AND Part B: a lesson made only of Part A + Part B must still be caught)
+    ['right answer always longest', L => { const v = L.versions[0]; [v.pre, ...v.turn].forEach(t => t.items.forEach(it => { const cs = it.type === 'ebsr' ? [it.a, it.b] : it.type === 'mc' ? [it] : []; cs.forEach(c => { c.choices[0] = c.choices[0] + ' And that was a very long and important thing to see.'; c.evidence = false; });
+      if (it.type === 'ms') it.choices = it.choices.map((c, i) => (i < (it.pick || 2) ? c + ' And that was a very long and important thing to see.' : c)); })); }, /longest choice/],
+    // Choose TWO (RD4)
+    ['Choose TWO not in the test words', L => { const it = firstOf(L, 'ms').it; it.q = it.q.replace(/Choose (TWO|THREE)/g, 'Pick'); }, /says "Choose TWO"/],
+    ['Choose TWO with too few choices', L => { const it = firstOf(L, 'ms').it; it.choices = it.choices.slice(0, 4); if (it.kinds) it.kinds = it.kinds.slice(0, 4); if (it.notes) it.notes = it.notes.slice(0, 4); }, /choices for pick|Choose TWO has 5 choices/],
+    ['Choose TWO wrong choice with no kind', L => { firstOf(L, 'ms').it.kinds = []; }, /has no kind/],
+    // Level 2 (RD): a new worked example every try, grade 4–5 stories, close wrong choices
+    ['L2 · teaching story shared by two versions', L => { level2(L); L.versions[1].teach = JSON.parse(JSON.stringify(L.versions[0].teach)); }, /the same teaching story as version/],
+    ['L2 · a version with no teaching story', L => { level2(L); delete L.versions[2].teach; }, /teaching story in EVERY version/],
+    ['L2 · teaching steps differ between versions', L => { level2(L); L.versions[1].teach.flow.find(f => f.kind === 'step').id = 'S9'; }, /steps differ from version 1/],
+    ['L2 · story too easy', L => { level2(L); const st = L.versions[0].turn[0].story; st.paragraphs = st.paragraphs.map(() => Array(9).fill('The dog ran to the big red barn.').join(' ')); }, /FK -?\d+\.\d+ \(want 4/],
+    ['L2 · no close wrong choice', L => { level2(L); const x = firstOf(L, 'ebsr') || firstEvidence(L); if (!x) throw new Error('no proof question');
+      const c = x.it.type === 'ebsr' ? x.it.b : x.it, story = x.story, at = paraOfP(story, c.choices[0]);
+      const far = story.paragraphs.flatMap((p, i) => (i === at ? [] : R.split(p))).filter(t => !c.choices.includes(t));
+      c.choices = c.choices.map((t, i) => (i && paraOfP(story, t) === at ? far.shift() : t)); }, /close wrong choice/],
+    ['L2 · no partly-right wrong choice', L => { level2(L); const x = firstOf(L, 'ebsr') || firstOf(L, 'ms'); const c = x.it.type === 'ebsr' ? x.it.a : x.it;
+      c.kinds = (c.kinds || []).map(k => (k === 'toofar' || k === 'onedetail' ? 'noclue' : k)); }, /partly-right wrong choice/],
+    ['L2 · a pick-2 list of 5', L => { level2(L); const it = (() => { for (const v of L.versions) for (const t of [v.pre, ...v.turn]) for (const q of t.items) if (q.type === 'hot' && q.pick === 2 && Array.isArray(q.list)) return q; return null; })();
+      const out = it.list.find(t => !it.answers.includes(t)); it.list = it.list.filter(t => t !== out); if (it.kinds) delete it.kinds[out]; if (it.notes) delete it.notes[out]; }, /pick-2 list has 6 sentences/]
   ];
   // caught = the plant adds a problem the lesson did not have before (a lesson that already fails
   // would otherwise "catch" every plant)
@@ -412,10 +496,10 @@ function plantsFor(LESSONS, others, form) {
 /* ═══ RUN ═══ */
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const only = args.filter(a => /^RC\d+$/i.test(a)).map(a => a.toUpperCase());
+  const only = args.filter(a => /^R[CD]\d+$/i.test(a)).map(a => a.toUpperCase());
   const LESSONS = loadLessons(path.join(SITE, 'data'));
   const others = otherTitles();
-  if (!Object.keys(LESSONS).length) { console.log('No reading lessons found (data/rcN.js).'); process.exit(1); }
+  if (!Object.keys(LESSONS).length) { console.log('No reading lessons found (data/rcN.js, data/rdN.js).'); process.exit(1); }
   const { fails, report } = checkAll(LESSONS, only, others);
   console.log(report.join('\n'));
   let bad = fails.length;

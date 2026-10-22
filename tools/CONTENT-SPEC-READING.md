@@ -243,3 +243,182 @@ The lesson teaches how to click a sentence: tap it, it turns yellow, tap again t
 - Does every proof sentence truly SHOW the idea?
 - Are the wrong sentences really in the passage but NOT proof?
 - Are the four versions about different things from each other and from the other lessons?
+
+---
+
+# LEVEL 2: `data/rd1.js` – `rd4.js` (RD1 Find the Proof: Level 2 · RD2 Part A and Part B: Level 2 · RD3 Click the Sentences: Level 2 · RD4 Choose Two)
+
+## Who Level 2 is for
+Marcos 10/22: "I would like to offer growth opportunities to kids at all levels not just my low."
+- Level 2 is for the middle and top readers of the class. They scored At/Near or Above on the Read Literary Texts IAB.
+- They read at about grade level. On that IAB, these students got 73% of the one-answer questions right, but only 43% of the Part A + Part B, Choose TWO and click-the-sentences questions.
+- So what is hard is the FORMAT, on a grade-level story, with wrong choices that are close to right. The words are not the hard part.
+- Level 1 kids climb into Level 2 after they pass RC1–RC3, so Level 2 must also teach. Every test word is still taught in a watch screen.
+
+Everything in the Level 1 spec above still holds, unless this section says otherwise. That covers the item types, the kinds, the writing rules, the banned premises, the banned names, the rules about dialogue in click areas, "name the thing" and the paragraph numbers.
+
+## What is different in Level 2
+
+### 1. A teaching story in EVERY version (a new worked example each try)
+Marcos 10/21: a retry teaches with ONE method and NEW stories, never a second model.
+- There is NO top-level `teach`.
+- Each version carries its own `teach: { story, flow }`.
+- All 4 flows have the SAME screens in the same order: the same ids, kinds, item types, pick counts and skills.
+- Only the story, the worked example and the words change.
+- W1 (the test words) and W3 (the steps) may say nearly the same thing in every version.
+- W2 and the steps work on THAT version's teaching story.
+
+```js
+window.LAB_RC = window.LAB_RC || {};
+window.LAB_RC.RD1 = {
+  versions: [   // EXACTLY 4
+    { teach: { story: STORY, flow: [W1, W2, S1, S2, S3, W3] },
+      pre:   { story: STORY, items: [...] },
+      turn:  [ { story: STORY, items: [...] }, { story: STORY, items: [...] } ] },
+    …
+  ]
+};
+```
+
+### 2. Grade 4–5 stories (the checker enforces this)
+| Story | FK | Words | Paragraphs |
+|---|---|---|---|
+| Teaching story (one per version) | 3.5 – 4.5 | 180 – 280 | 4 – 10 |
+| Show what you know | 4.0 – 5.0 | 180 – 280 | 4 – 10 |
+| Your turn (RD1, RD2, RD4) | 4.0 – 5.0 | 280 – 400 | 4 – 10 |
+| Your turn (RD3: click areas need sentences) | 4.0 – 5.0 | 320 – 450 | 4 – 10 |
+
+- **Sentences:** to land at FK 4–5, write sentences of about 12 to 17 words with a normal mix of two- and three-syllable words. Mix in some short sentences for rhythm.
+- **Words:** grade 4–5 words are fine, because every story is read aloud. Do not use words a 5th grader would not know.
+- **Check one story:** `node tools/fk.js "paragraph one" "paragraph two" …`.
+- **The teaching voice stays easy, the same as Level 1.**
+  - The watch lines, the why lines, the notes, and the steps' why lines and notes must read at **FK 3.0 or less**, together per version.
+  - Questions must read at **4.0 or less**.
+  - So a why line PARAPHRASES the story in short sentences. It does not quote long story sentences. ("Paragraph 3 says that Ines checks the map twice before she turns.")
+
+### 3. Close wrong choices: this is what makes Level 2 harder (the checker enforces the first two)
+- **A "which sentence" question (`mc` with `evidence: true`) and every Part B:**
+  - At least ONE wrong sentence comes from the SAME paragraph as the proof sentence.
+  - That sentence is true and about the same moment, but it does not SHOW the idea (kind `notproof`).
+  - Use the other wrong sentences for other traps: the right idea but the wrong person (`wrongwho`); a sentence from another part of the story (`wrongtime`).
+- **Every Part A and every Choose TWO:** at least ONE wrong choice is PARTLY right.
+  - `toofar`: the clues point that way, but the choice says more than they prove. ("Ines is the best map reader in her class.")
+  - `onedetail`: it names one small detail, not the answer to the question.
+  - A careful reader must check the passage to rule it out.
+- **No silly wrong choices.** Every wrong choice is about the people and events in the story, uses the story's words, and is about as long as the right answer.
+- **Still exactly one right answer** (two for Choose TWO). A wrong choice must be wrong for a reason you can say in one sentence and point to in the passage. The why or note says that reason.
+
+### 4. Click questions (RD3)
+- A pick-2 `list` has exactly **6** sentences, in story order, from across the passage.
+- A pick-2 `para` paragraph has **6 or more** sentences.
+- A pick-1 `para` paragraph has 4 or more.
+- The two list questions on one story never share a sentence.
+
+## Lesson plans
+
+### RD1: Find the Proof: Level 2 (skill: Evidence selection)
+- **Same as RC1, on longer stories with closer choices.**
+- **The new teaching point:** a sentence can be in the right paragraph and about the right idea, and STILL not prove it. Proof SHOWS the idea with an action, a word or a detail.
+- **teach.flow** (every version):
+  - W1 "Proof, Level 2". Remind the class of: passage, paragraph, idea, proof, "supports" (= proves), BEST (= proves it the most). Then the new point, with an everyday example: "Your friend says the team is tired. 'The game was long' is about the game. 'Every player sat down on the grass' SHOWS they are tired."
+  - W2 "Watch me find the BEST proof". A worked example on this version's teaching story:
+    1. Say the idea.
+    2. Find the paragraph.
+    3. Test each sentence there.
+    4. Name the CLOSE sentence (the same paragraph, about the idea, not proof) and why it is not proof.
+    - `lit`: the proof sentence and the close sentence.
+  - S1 mc: "What idea does the question ask us to prove?"
+  - S2 mc: "Which paragraph tells about [the idea]?"
+  - S3 mc evidence: the real question.
+  - W3 "The steps, Level 2": 1. Say the idea. 2. Find the part of the passage about it. 3. Test EVERY sentence there. A sentence about the idea is not always proof. Pick the one that SHOWS it.
+- **pre:** P1–P3, mc evidence, on one story. Include one "Read paragraph N" item (with `para: N`).
+- **turn:**
+  - Story A: Q01–Q04, mc evidence.
+  - Story B: Q05–Q08, mc evidence.
+  - Stems: the RC1 stems, plus the IAB's "Which detail from the passage BEST shows that ___?" and "Which sentence from the passage BEST shows how ___ feels about ___?"
+  - Mix the ideas: what a character is like, how a character feels and why, why something happens, and how a character changes. Each story has at least one `para` item.
+
+### RD2: Part A and Part B: Level 2 (skills: Part A per item, Part B = 'Supporting detail')
+- **Same as RC2, with harder Part A questions.**
+- **teach.flow** (every version):
+  - W1 "One question, two parts". Part A, Part B, infer, conclusion; a one-line reminder of "BEST supports".
+  - W2 "Watch me do Part A and Part B". A worked ebsr on the teaching story:
+    - Part A: clue + what we know = the inference. Name the PARTLY-right choice (`toofar`) and why it goes too far.
+    - Part B: the sentence that is the clue. Name the close sentence.
+    - `lit`: the Part B sentence and the close sentence.
+  - S1 mc: Part A alone.
+  - S2 mc evidence: "Now prove it. Which sentence from the passage BEST supports [the Part A answer]?"
+  - S3 ebsr: a second full Part A + Part B, about a different idea.
+  - W3 "The steps".
+- **pre:** P1 and P2, both ebsr (4 points): P1 ['Drawing conclusions', 'Supporting detail'] and P2 ['Character inference', 'Supporting detail'].
+- **turn:** each ebsr is worth 2, so 8 points.
+  - Story A:
+    - Q01 ebsr ['Drawing conclusions', 'Supporting detail']: "Part A — What conclusion can the reader draw about ___?" (IAB item 4)
+    - Q02 ebsr ['Character inference', 'Supporting detail']: "Part A — Which word BEST describes ___?" The Part A choices are four ONE-WORD traits, like the IAB's item 9: thoughtful, careless, proud, shy. One of them is partly right.
+  - Story B:
+    - Q03 ebsr ['Theme', 'Supporting detail']: "Part A — Which sentence BEST states a lesson of the story?" The four Part A choices are lessons:
+      - one is right
+      - one goes too far (`toofar`)
+      - one is a lesson from a different story (`noclue`)
+      - one is the opposite (`opposite`)
+    - Q04 ebsr ['Drawing conclusions', 'Supporting detail']: "Part A — Why does ___ ___?" The reason is never stated; the reader infers it.
+
+### RD3: Click the Sentences: Level 2 (skill: Evidence selection)
+- **Same as RC3, with 6-sentence lists and longer paragraphs.**
+- **teach.flow** (every version):
+  - W1 "How to click". Tap a sentence and it turns yellow; tap it again to take it back. Choose TWO means BOTH must prove the idea, and one right plus one wrong earns no point, like the test.
+  - W2 "Watch me find the TWO". Light up the two right sentences AND the close sentence.
+  - S1 hot pick 1 with `para`.
+  - S2 hot pick 2 with `list` (6).
+  - W3 "The steps": check BOTH. If one does not SHOW the idea, change it.
+- **pre:** P1 hot pick 1 with para, P2 hot pick 2 with list (6), P3 hot pick 2 with para (6+ sentences).
+- **turn:** stories of 320–450 words.
+  - Story A:
+    - Q01 hot pick 1 with para: "Read paragraph N. Click on the sentence in paragraph N that BEST shows ___."
+    - Q02 hot pick 2 with list (6).
+    - Q03 hot pick 2 with para (6+ sentences).
+    - Q04 hot pick 2 with list (6).
+  - Story B: Q05–Q08, the same four slots.
+- **Close sentences:** in every pick-2 item, at least one wrong clickable sentence is about the idea but does not prove it. Give it a `notes` entry that says why.
+
+### RD4: Choose Two (Choose TWO about IDEAS: Marcos 10/22 picked ideas, not word meanings)
+- **What it teaches:**
+  - "Choose TWO" means two answers that are BOTH right. One right and one wrong earns no point, like the test.
+  - Find one right answer first. Then test EVERY other choice against the passage. A choice can sound right and still go too far.
+- **Item:** `{ id, type: 'ms', skill, pick: 2, q: '… Choose TWO answers.', choices: [right1, right2, w, w, w], kinds: [null, null, k, k, k], notes: [null, null, n, n, n], why }`
+  - Exactly 5 choices: the TWO right ones first, then 3 wrong.
+  - At least one wrong choice is `toofar` or `onedetail`.
+  - The choices are idea statements, NOT story sentences, so do not set `evidence`.
+  - The why names the paragraph for BOTH right answers.
+- **teach.flow** (every version):
+  - W1 "Choose TWO". What it means, all or nothing, and how to tap and untap.
+  - W2 "Watch me choose TWO". A worked example: find the first right answer and its proof, then the second, then name the partly-right choice and why it goes too far.
+  - S1 mc: "Which ONE of these is true about ___?" (the first right answer).
+  - S2 mc: "One more answer is right. Which other one does the passage show?"
+  - S3 ms: the full Choose TWO question.
+  - W3 "The steps": 1. Read the question. 2. Find one answer the passage proves. 3. Test every other choice. 4. Pick the second one the passage proves. 5. Check both.
+- **pre:** P1–P3, all ms, on one story, skills Character inference, Drawing conclusions, Theme.
+- **turn:** 8 points.
+  - Story A:
+    - Q01 ms 'Character inference': "Which TWO sentences BEST describe ___? Choose TWO answers."
+    - Q02 ms 'Drawing conclusions': "What can the reader conclude about ___? Choose TWO answers."
+    - Q03 ms 'Character feelings': "Which TWO sentences BEST tell how ___ feels at the end of the passage? Choose TWO answers."
+    - Q04 ms 'Theme': "Which TWO sentences BEST state lessons of the story? Choose TWO answers."
+  - Story B: Q05–Q08, the same four slots.
+
+## Stories already used (do not reuse these premises or titles)
+- **Level 1 titles:**
+  - **RC1:** The Boat on Grandpa's Table · Fudge Comes Home · Taco Night at Ezra's House · Muffins for 4B · Bo and the Shopping List · Celia's Cousin Sleeps Over · Down to the Basement · Stitches for Bun · Saturday Braids · The Hungry Toy Bin · Rory Learns to Whistle · Purple Frames with Stars · A Bed for Old Duke
+  - **RC2:** Waves on a Blank Page · The Wrong Name on the Cake · Boots by the Big Red Truck · Salt on a String · Letters in the Wind · Whispers From the Side of the Stage · Ten Moves on Thursday · The Clay Turtle · Two Ropes in the Gym · The Silver Robot Box · The Pencil Captain · The Robot That Would Not Turn · An Apple in a Scarf
+  - **RC3:** Milk from Mr. Vance's Store · Clean-Up Day at Willow Park · Bus 22 to the Big Tree · Keeping Score at the Bowling Alley · The Best Hiding Spot · A Card with Her Name on It · The Rake Next Door · The Last Potato Dig · Water Cups on Race Day · After School at the Corner Store · Under the Purple Umbrella · Grandpa's Hiccups · The Coat Box in the Lobby
+- **Also banned:** the Level 1 banned premises, and the IAB's own passages (a rain barrel, a game-winning catch, a twig bundle).
+- The checker also fails any title used on Inference Practice, Read Literary or R.A.D. Practice.
+
+## Done means
+- `node tools/check-reading.js RD1` (or RD2, RD3, RD4) prints "✓ all checks passed".
+- Then reread every story as a careful 10-year-old would:
+  - Is exactly one choice right (two for Choose TWO)?
+  - Could a careful reader defend a "wrong" choice? If so, fix it.
+  - Is the close sentence truly NOT proof?
+  - Does every proof truly SHOW the idea?
+  - Are the 4 versions about different things from each other and from every other Lab story?
