@@ -1086,7 +1086,7 @@ function multiplesQ(id, [a, m], { pre, skill, r }) {
 }
 
 /* ═══ STRAND 4 · ROUNDING — the class's method: benchmarks, halfway, before/past, round (70%) ═══ */
-const PLACE = { 10: 'ten', 100: 'hundred', 1000: 'thousand' };
+const PLACE = { 10: 'ten', 100: 'hundred', 1000: 'thousand', 10000: 'ten thousand', 100000: 'hundred thousand', 1000000: 'million' };
 
 /* A question whose choices are words ("40 and 50") — one right, three named slips, placed at random. */
 function wordQuestion(base, answer, wrongs, r) {
@@ -1120,7 +1120,8 @@ function benchQ(id, [n, unit], { pre, skill, r }) {
   const smaller = unit / 10;
   const lowS = Math.floor(n / smaller) * smaller;
   return wordQuestion({
-    id, skill, mistake: { type: 'B', n, unit }, q: `${fmt(n)} is between which two ${name}s?`,
+    // "which two hundred thousands" sounds like 200,000s: for that place the question says benchmarks (Big Numbers)
+    id, skill, mistake: { type: 'B', n, unit }, q: unit === 100000 ? `${fmt(n)} is between which two benchmarks? Count by hundred thousands.` : `${fmt(n)} is between which two ${name}s?`,
     ...(pre ? { kind: 'pre' } : { hint: `Count by ${name}s. Find the ${name} below ${fmt(n)}. Then the one above it.`, pic: { rline: { n, unit, hideEnds: true } }, explain: { rline: { n, unit, bench: true } } }),
     explanation: how
   }, pair(low, high), [
@@ -1142,7 +1143,9 @@ function halfwayQ(id, [n, unit], { pre, skill, r }) {
   }, half, [
     { v: low + unit / 10 * 5 + unit / 10, tag: 'Missed the middle', say: `That is past the middle. ${how}` },
     { v: low + unit / 10 * 4, tag: 'Missed the middle', say: `That is before the middle. ${how}` },
-    ...(unit > 10 ? [{ v: low + 5, tag: 'Halfway of the wrong place', say: `That is halfway for tens. ${how}` }] : []),
+    ...(unit > 10 && unit <= 1000 ? [{ v: low + 5, tag: 'Halfway of the wrong place', say: `That is halfway for tens. ${how}` }] : []),
+    // big numbers (Big Numbers strand): halfway for the next smaller place, 40,500 for 40,000 to 50,000
+    ...(unit >= 10000 ? [{ v: low + unit / 20, tag: 'Halfway of a smaller place', say: `That is halfway for ${PLACE[unit / 10]}s. ${how}` }] : []),
     { v: high, tag: 'Gave a benchmark', say: `${fmt(high)} is an end, not the middle. ${how}` },
     { v: low, tag: 'Gave a benchmark', say: `${fmt(low)} is an end, not the middle. ${how}` }
   ], r);
@@ -1157,7 +1160,7 @@ function roundQ(id, [n, unit], { pre, skill, r }) {
   const bigUnit = unit * 10, bigRound = Math.round(n / bigUnit) * bigUnit;
   return question({
     id, skill, noNear: true, commas: true, mistake: { type: 'R', n, unit }, q: `Round ${fmt(n)} to the nearest ${name}.`,
-    ...(pre ? { kind: 'pre' } : { hint: `Find the two ${name}s. Find halfway. Before halfway rounds down. Halfway or past rounds up.`, pic: { rline: { n, unit } }, explain: { rline: { n, unit, bench: true, half: true, arrow: ans } } }),
+    ...(pre ? { kind: 'pre' } : { hint: `${unit === 100000 ? 'Find the benchmarks. Count by hundred thousands.' : `Find the two ${name}s.`} Find halfway. Before halfway rounds down. Halfway or past rounds up.`, pic: { rline: { n, unit } }, explain: { rline: { n, unit, bench: true, half: true, arrow: ans } } }),
     explanation: how
   }, ans, [
     { v: other, keep: true, tag: up ? 'Rounded down instead of up' : 'Rounded up instead of down', say: `${fmt(other)} is the other end. ${how}` },
@@ -1359,7 +1362,7 @@ const PV_LESSONS = ({ watch, step, B }) => [
         'This is the place value check. It has 20 questions.',
         'Find what a digit is worth. Compare numbers. Rename numbers. Times 10, 100 and tens.',
         'There are no hints and no pictures this time.',
-        'Get 14 of 20 right to finish Place Value.'
+        'Get 15 of 20 right to finish Place Value.'
       ])
     ],
     parts: [
@@ -1505,7 +1508,7 @@ const RO_LESSONS = ({ watch, step, B }) => {
           'This is the rounding check. It has 20 questions.',
           'Find the benchmarks. Find halfway. Before halfway rounds down. Halfway or past rounds up.',
           'There are no hints and no pictures this time.',
-          'Get 14 of 20 right to finish Rounding.'
+          'Get 15 of 20 right to finish Rounding.'
         ])
       ],
       parts: [
@@ -1520,6 +1523,660 @@ const RO_LESSONS = ({ watch, step, B }) => {
 };
 LESSONS.push(...PV_LESSONS({ watch, step, B: { valuePool, valueQ, expandedPool, expandedQ, comparePool, compareQ, renamePool, renameQ, times10Pool, times10Q, multiplesPool, multiplesQ } }));
 LESSONS.push(...RO_LESSONS({ watch, step, B: { benchPool, halfPool, benchQ, halfwayQ, roundQ } }));
+
+/* ═══ STRANDS 5–6 · BIG NUMBERS — a stretch for the middle and top students (not facts: 75%) ═══
+   Marcos 10/22, after the Place Value FIAB of 10/21: the whole class was weakest on rounding (33%) and on comparing
+   numbers written in different ways (38%), the top students too. Numbers to the hundred thousands:
+     Place Value: Big Numbers  BP1 places · BP2 parts in any order · BP3 more than 9 in a place · BP4 compare in any form · BP5 check
+     Rounding: Big Numbers     BR1 benchmarks and halfway · BR2 round · BR3 any place · BR4 which one rounds to it · BR5 check
+   Rounding is the class's method only: benchmarks → halfway → before or past (Marcos 10/21: no "5 or more" rule).
+   A retry teaches again the same way, with new numbers (teach(sk, ctx)). A mistake is named by its place. The FIAB's own
+   numbers are never used (tools/check-lab.js rule 13). */
+const PLACE_ONE = ['one', 'ten', 'hundred', 'thousand', 'ten thousand', 'hundred thousand'];
+const term = (p, k) => `${k} ${k === 1 ? PLACE_ONE[p] : PLACES[p]}`;          // "4 tens", "1 thousand"
+const placeOfUnit = u => Math.round(Math.log10(u));
+const noHelp = build => (id, t, o) => { const q = build(id, t, o); delete q.hint; delete q.pic; return q; };   // a check: no hint, no picture
+// the FIAB's own numbers (practice test sources/grade4_math_place_value_fiab_blueprint.md): never a question here
+const FIAB_AVOID = new Set([53894, 31902, 32304, 31499, 68215, 24285, 23516, 24740, 787347, 67737, 9057, 9507, 3156, 2060, 2006, 5931, 2401, 1534, 1901, 2657]);
+const FIAB_TARGETS = new Set([32000, 24000, 68000, 53900, 790000]);
+
+/* BP1 · the value of a digit in 5- and 6-digit numbers (hundreds and up) */
+const bigValuePool = () => [...valuePool(5), ...valuePool(6)].filter(([n, p]) => p >= 2 && !FIAB_AVOID.has(n));
+const takeNumber = (take, n) => range(1, String(n).length - 1).forEach(p => take([n, p]));   // a taught number is never asked
+function teachBigPlaces(sk, { pick, take }) {
+  const pool = bigValuePool();
+  const first = list => { const f = one(pick, list); takeNumber(take, f[0]); return f; };
+  const dig = (n, p) => digitsOf(n)[p];
+  const [n1, p1] = first(pool.filter(([n, p]) => n >= 100000 && p >= 4));
+  const [n2] = first(pool.filter(([n, p]) => n < 100000 && p === 4));
+  const [a] = first(pool.filter(([n, p]) => n < 100000 && p === 3));
+  const d = dig(a, 3), d2 = dig(n2, 4);
+  const [b] = first(pool.filter(([n, p]) => n >= 100000 && p === 5 && dig(n, 5) === d));
+  return [
+    watch('W1', sk, 'Big numbers have more places', [
+      `Look at ${fmt(n1)}. Count the places from the right.`,
+      'First the ones, the tens, the hundreds. Then the thousands.',
+      'Then the ten thousands. Then the hundred thousands.',
+      `The ${dig(n1, p1)} is in the ${PLACES[p1]} place. It is worth ${fmt(dig(n1, p1) * pow(p1))}.`
+    ], { places: { n: n1, mark: p1 } }),
+    step('S1', sk, `In ${fmt(n2)}, which place is the ${d2} in?`, 'ten thousands', [
+      ['thousands', `Count from the right. Ones, tens, hundreds, thousands, ten thousands. The ${d2} is in the ten thousands place.`],
+      ['hundred thousands', `${fmt(n2)} has 5 places. The 5th place from the right is ten thousands.`]
+    ], { pic: { places: { n: n2 } } }),
+    step('S2', sk, `The ${d2} is in the ten thousands place. What is it worth?`, fmt(d2 * 10000), [
+      [String(d2), `${d2} is the digit. In the ten thousands place, it is worth ${fmt(d2 * 10000)}.`],
+      [fmt(d2 * 1000), `${fmt(d2 * 1000)} is ${term(3, d2)}. The ${d2} is one more place to the left. It is worth ${fmt(d2 * 10000)}.`]
+    ], { explain: { places: { n: n2, mark: 4 } } }),
+    watch('W2', sk, 'Same digit, new place', [
+      `In ${fmt(a)}, the ${d} is in the thousands place. It is worth ${fmt(d * 1000)}.`,
+      `In ${fmt(b)}, the ${d} is in the hundred thousands place. It is worth ${fmt(d * 100000)}.`,
+      'The digit is the same. The place changes what it is worth.'
+    ], { places: { n: b, mark: 5 } })
+  ];
+}
+
+/* BP2 · parts in any order: "4 tens + 7 thousands + 2 ones", "60 + 5,000 + 3 + 200" (the FIAB's trap: the parts are not
+   in place order). A number's order is fixed (seeded by the number), so a student's own miss comes back the same way. */
+function partsOrder(n) {
+  const d = digitsOf(n), places = range(0, d.length - 1).filter(p => d[p]);
+  if (places.length < 2) return null;
+  const r = rng(seedOf(`parts-${n}`));
+  for (let i = 0; i < 12; i++) {
+    const o = shuffled(places, r);
+    const biggestFirst = o.every((p, j) => j === 0 || o[j - 1] > p);
+    if (!biggestFirst && Number(o.map(p => d[p]).join('')) !== n) return o;
+  }
+  return null;
+}
+const partsWords = n => n % 2 === 1;      // odd numbers in place words, even ones as numbers: one fixed way per number
+const partOf = (n, p) => (partsWords(n) ? term(p, digitsOf(n)[p]) : fmt(digitsOf(n)[p] * pow(p)));
+const partsList = n => partsOrder(n).map(p => partOf(n, p));
+const partsText = n => partsList(n).join(' + ');
+const emptyPlaces = n => { const d = digitsOf(n); return range(0, d.length - 2).filter(p => !d[p]); };
+function mixedPartsPool() {
+  const out = [];
+  for (let n = 1046; n <= 989999; n += n < 10000 ? 83 : n < 100000 ? 787 : 7877) {
+    const nz = digitsOf(n).filter(Boolean).length;
+    if (nz >= 3 && nz <= 5 && partsOrder(n) && !FIAB_AVOID.has(n)) out.push([n]);
+  }
+  return out;
+}
+function mixedPartsQ(id, [n], { pre, skill, r }) {
+  const d = digitsOf(n), top = d.length - 1, order = partsOrder(n), terms = partsText(n), empty = emptyPlaces(n);
+  const how = `Put each part in its place. Start with the biggest place: ${term(top, d[top])}. ` +
+    empty.map(p => `A 0 holds the ${PLACES[p]} place. `).join('') + `${terms} = ${fmt(n)}.`;
+  const listed = Number(order.map(p => d[p]).join(''));
+  const noZeros = empty.length ? Number(String(n).replace(/0/g, '')) : null;
+  const last = order[order.length - 1], lastV = d[last] * pow(last);
+  const f = order.find((p, j) => p !== order.length - 1 - j);   // the first digit that lands in the wrong place when read in order
+  return question({
+    id, skill, q: `What number is ${terms}?`, mistake: { type: 'E', n }, noNear: true, commas: true,
+    ...(pre ? { kind: 'pre' } : { hint: 'Find the biggest place first. Put each part in its place. A 0 holds an empty place.', pic: { places: { parts: partsList(n) } }, explain: { places: { n } } }),
+    explanation: how
+  }, n, [
+    { v: listed, keep: true, tag: 'Wrote the parts in the order listed', say: `You wrote the digits in the order they are listed. The ${d[f]} is ${term(f, d[f])}. It goes in the ${PLACES[f]} place. ${how}` },
+    ...(noZeros ? [{ v: noZeros, tag: 'Left out a zero', say: `A place was left out. A 0 must hold it. ${how}` }] : []),
+    { v: n - lastV + lastV * 10, tag: 'Put a part in the wrong place', say: `The ${term(last, d[last])} went one place too far left. ${how}` },
+    { v: d.reduce((a, b) => a + b, 0), tag: 'Added the digits', say: `You added the digits. Each digit has a place. ${how}` },
+    { v: n + pow(top), tag: 'Biggest place off by one', say: `Look at the biggest place again. ${how}` },
+    { v: n - pow(top), tag: 'Biggest place off by one', say: `Look at the biggest place again. ${how}` }
+  ], r);
+}
+function teachMixedParts(sk, { pick }) {
+  const pool = mixedPartsPool();
+  const oneZero = n => emptyPlaces(n).length === 1;
+  const [n1] = one(pick, pool.filter(([n]) => partsWords(n) && oneZero(n) && n < 100000));
+  const [n2] = one(pick, pool.filter(([n]) => partsWords(n) && oneZero(n) && n < 100000));
+  const [n3] = one(pick, pool.filter(([n]) => !partsWords(n) && n < 100000));
+  const d1 = digitsOf(n1), d2 = digitsOf(n2), d3 = digitsOf(n3);
+  const t1 = d1.length - 1, t2 = d2.length - 1, t3 = d3.length - 1;
+  const z1 = emptyPlaces(n1)[0], z2 = emptyPlaces(n2)[0];
+  const o2 = partsOrder(n2), listed2 = Number(o2.map(p => d2[p]).join(''));
+  const firstNotTop = o2.find(p => p !== t2), low2 = o2.filter(p => p !== t2 && p !== firstNotTop)[0];
+  const has2 = o2.filter(p => p !== t2).slice(0, 2);
+  return [
+    watch('W1', sk, 'Parts in any order', [
+      `What number is ${partsText(n1)}?`,
+      'The parts are mixed up. Find the biggest place first.',
+      `The biggest place is ${term(t1, d1[t1])}. Then put each part in its place.`,
+      `There are no ${PLACES[z1]}. A 0 holds the ${PLACES[z1]} place.`,
+      `${partsText(n1)} = ${fmt(n1)}.`
+    ], { places: { n: n1 } }),
+    step('S1', sk, `What number is ${partsText(n2)}? Which part is the biggest place?`, term(t2, d2[t2]), wrongsOf(term(t2, d2[t2]), [
+      ...[firstNotTop, low2].filter(p => p != null).map(p => [term(p, d2[p]), `${term(p, d2[p])} is not the biggest place. ${term(t2, d2[t2])} is.`])
+    ]), { pic: { places: { parts: partsList(n2) } } }),
+    step('S2', sk, `${partsText(n2)}. Which place has no part?`, PLACES[z2], has2.map(p => [PLACES[p], `There is a part for the ${PLACES[p]}: ${term(p, d2[p])}. The ${PLACES[z2]} place has no part. A 0 holds it.`]),
+      { pic: { places: { parts: partsList(n2) } } }),
+    step('S3', sk, `So what number is ${partsText(n2)}?`, fmt(n2), wrongsOf(fmt(n2), [
+      [fmt(listed2), `You wrote the digits in the order they are listed. Put each part in its place. ${fmt(n2)}.`],
+      [fmt(Number(String(n2).replace(/0/g, ''))), `A 0 must hold the ${PLACES[z2]} place. ${fmt(n2)}.`],
+      [fmt(n2 + pow(t2)), `Look at the biggest place again: ${term(t2, d2[t2])}. ${fmt(n2)}.`]
+    ]), { explain: { places: { n: n2 } } }),
+    watch('W2', sk, 'Parts as numbers', [
+      `What number is ${partsText(n3)}?`,
+      `${fmt(d3[t3] * pow(t3))} is the biggest part. It is ${term(t3, d3[t3])}.`,
+      'Put each part in its place, from the biggest to the smallest.',
+      `${partsText(n3)} = ${fmt(n3)}.`
+    ], { places: { n: n3 } })
+  ];
+}
+
+/* BP3 · more than 9 in a place: "3 thousands + 12 hundreds + 4 tens" (trade 10 hundreds for 1 thousand) and "42 hundreds".
+   A number's trade is fixed (seeded by the number), so a student's own miss (E n) comes back the same way. */
+function tradeOf(n) {
+  const d = digitsOf(n), top = d.length - 1;
+  const at = range(0, top - 1).filter(p => d[p + 1] >= 1);    // a place that can take 10 from the place to its left
+  if (!at.length) return null;
+  const r = rng(seedOf(`trade-${n}`));
+  const P = at[Math.floor(r() * at.length)];
+  const k = d[P + 1] >= 2 && r() < 0.3 ? 2 : 1;
+  const counts = d.slice(); counts[P] += 10 * k; counts[P + 1] -= k;
+  if (counts.filter(Boolean).length < 2) return null;
+  return { P, k, counts };   // counts by place (ones first); 0 = no part
+}
+const countsText = counts => range(0, counts.length - 1).reverse().filter(p => counts[p]).map(p => term(p, counts[p])).join(' + ');
+// fact [n] = a number written with one place traded; fact [n, unit] = one count by itself ("42 hundreds")
+function countsOf(fact) {
+  if (fact.length === 2) { const p = placeOfUnit(fact[1]), c = Array(p).fill(0); c[p] = fact[0] / fact[1]; return { P: p, k: Math.floor(c[p] / 10), counts: c }; }
+  return tradeOf(fact[0]);
+}
+function regroupPool() {
+  const out = [];
+  for (let n = 1043; n <= 98765; n += n < 10000 ? 67 : 731) {
+    const t = tradeOf(n);
+    if (t && digitsOf(n).filter(Boolean).length >= 3 && !FIAB_AVOID.has(n)) out.push([n]);
+  }
+  for (const unit of [100, 1000]) for (let c = 11; c <= 98; c += 3) if (c % 10) out.push([c * unit, unit]);
+  return out;
+}
+function tradeSay(P, c) {
+  const k = Math.floor(c / 10), rest = c % 10;
+  return `10 ${PLACES[P]} make 1 ${PLACE_ONE[P + 1]}. So ${term(P, c)} is ${term(P + 1, k)}${rest ? ` and ${term(P, rest)}` : ''}.`;
+}
+function regroupQ(id, fact, { pre, skill, r }) {
+  const single = fact.length === 2, n = fact[0];
+  const { P, counts } = countsOf(fact), c = counts[P], k = Math.floor(c / 10);
+  const terms = countsText(counts);
+  const how = `${tradeSay(P, c)} ${terms} = ${fmt(n)}.`;
+  const topListed = Math.max(...range(0, counts.length - 1).filter(p => counts[p]));
+  const sideBySide = Number(range(0, topListed).reverse().map(p => String(counts[p] || 0)).join(''));
+  const dropped = counts.reduce((s, x, p) => s + (x % 10) * pow(p), 0);
+  const wrongs = [
+    ...(sideBySide !== n ? [{ v: sideBySide, keep: true, tag: 'Wrote a count in one place', say: `A place holds one digit. ${term(P, c)} will not fit in the ${PLACES[P]} place. ${how}` }] : []),
+    ...(dropped !== n && dropped > 0 ? [{ v: dropped, keep: sideBySide === n, tag: 'Did not trade', say: `The extra ${term(P + 1, k)} got lost. ${how}` }] : []),
+    { v: n - k * pow(P + 1) + k * pow(P + 2), tag: 'Traded to the wrong place', say: `The traded ${PLACE_ONE[P + 1]} went too far left. ${how}` },
+    ...(single
+      ? [{ v: c, tag: 'Gave only the count', say: `${c} is the count. Each one is ${fmt(pow(P))}. ${how}` },
+         { v: n / 10, tag: 'One zero too few', say: `That is ${term(P - 1, c)}. The question says ${PLACES[P]}. ${how}` }]
+      : [{ v: counts.reduce((a, b) => a + b, 0), tag: 'Added the counts', say: `You added the counts. Each count has its own place. ${how}` }])
+  ];
+  return question({
+    id, skill, q: `What number is ${terms}?`, mistake: single ? { type: 'N', n, unit: fact[1] } : { type: 'E', n }, noNear: true, commas: true,
+    ...(pre ? { kind: 'pre' } : { hint: `Trade 10 ${PLACES[P]} for 1 ${PLACE_ONE[P + 1]}. Then write the number.`, pic: { places: { counts } }, explain: { places: { counts, trade: true, n } } }),
+    explanation: how
+  }, n, wrongs, r);
+}
+function teachTrade(sk, { pick }) {
+  const pool = regroupPool();
+  const plain = f => f.length === 1 && countsOf(f).k === 1 && digitsOf(f[0])[countsOf(f).P] > 0 && countsOf(f).counts[countsOf(f).P + 1] >= 1;
+  const f1 = one(pick, pool.filter(plain)), f2 = one(pick, pool.filter(plain)), f3 = one(pick, pool.filter(f => f.length === 2));
+  const A = countsOf(f1), Bq = countsOf(f2), C = countsOf(f3);
+  const n1 = f1[0], n2 = f2[0], m = f3[0];
+  const cA = A.counts[A.P], cB = Bq.counts[Bq.P], cC = C.counts[C.P];
+  const upB = Bq.counts[Bq.P + 1];
+  const topB = Math.max(...range(0, Bq.counts.length - 1).filter(p => Bq.counts[p]));
+  const sideB = Number(range(0, topB).reverse().map(p => String(Bq.counts[p] || 0)).join(''));
+  const dropB = Bq.counts.reduce((s, x, p) => s + (x % 10) * pow(p), 0);
+  return [
+    watch('W1', sk, 'Ten make one', [
+      `What number is ${countsText(A.counts)}?`,
+      `${term(A.P, cA)} is more than 9. A place holds one digit.`,
+      `${tradeSay(A.P, cA)}`,
+      `Trade them. Now there are ${term(A.P + 1, A.counts[A.P + 1] + 1)}.`,
+      `${countsText(A.counts)} = ${fmt(n1)}.`
+    ], { places: { counts: A.counts, trade: true, n: n1 } }),
+    step('S1', sk, `${countsText(Bq.counts)}. What is ${term(Bq.P, cB)}?`, `${term(Bq.P + 1, 1)} and ${term(Bq.P, cB - 10)}`, [
+      [term(Bq.P + 1, cB), `Trade only 10 of them. ${tradeSay(Bq.P, cB)}`],
+      [`${term(Bq.P + 1, 1)} and ${term(Bq.P, cB)}`, `You took 10 ${PLACES[Bq.P]} away. ${tradeSay(Bq.P, cB)}`]
+    ], { pic: { places: { counts: Bq.counts } } }),
+    step('S2', sk, `Add the 1 ${PLACE_ONE[Bq.P + 1]} to the ${term(Bq.P + 1, upB)}. How many ${PLACES[Bq.P + 1]} now?`, upB + 1, [
+      [upB, `Do not forget the traded ${PLACE_ONE[Bq.P + 1]}. ${upB} + 1 = ${upB + 1}.`],
+      [upB + 10, `Only 1 ${PLACE_ONE[Bq.P + 1]} is added. ${upB} + 1 = ${upB + 1}.`]
+    ], { pic: { places: { counts: Bq.counts } } }),
+    step('S3', sk, `So what number is ${countsText(Bq.counts)}?`, fmt(n2), wrongsOf(fmt(n2), [
+      [fmt(sideB), `A place holds one digit. Trade first. ${countsText(Bq.counts)} = ${fmt(n2)}.`],
+      [fmt(dropB), `The traded ${PLACE_ONE[Bq.P + 1]} got lost. ${countsText(Bq.counts)} = ${fmt(n2)}.`]
+    ]), { explain: { places: { counts: Bq.counts, trade: true, n: n2 } } }),
+    watch('W2', sk, 'A count by itself', [
+      `What number is ${term(C.P, cC)}?`,
+      `${tradeSay(C.P, cC)}`,
+      `So ${term(C.P, cC)} = ${fmt(m)}.`
+    ], { places: { counts: C.counts, trade: true, n: m } })
+  ];
+}
+
+/* BP4 · compare in any form: "8,045 ___ 4 tens + 8 thousands + 5 ones" — pick <, > or = (the FIAB's way). The other side
+   is the same number another way (=), or the same digits in other places (the trap: 9,057 and 9,507). */
+const SIGNS = { '<': '< less than', '>': '> greater than', '=': '= equal to' };
+const SIGN_LIST = [SIGNS['<'], SIGNS['>'], SIGNS['=']];
+const REL_WORD = { '<': 'less than', '>': 'greater than', '=': 'equal to' };
+const formText = m => (tradeOf(m) && m % 3 === 0 ? countsText(tradeOf(m).counts) : partsText(m));   // one fixed way per number
+function signPool() {
+  const out = [];
+  for (let n = 1205; n <= 98760; n += n < 10000 ? 71 : 643) {
+    const d = digitsOf(n);
+    if (d.filter(Boolean).length < 3 || FIAB_AVOID.has(n) || !partsOrder(n)) continue;
+    out.push({ n, m: n });                                         // the same number, written another way
+    const r = rng(seedOf(`swap-${n}`));
+    const i = Math.floor(r() * d.length), j = (i + 1 + Math.floor(r() * (d.length - 1))) % d.length;
+    if (d[i] === d[j]) continue;
+    const e = d.slice(); [e[i], e[j]] = [e[j], e[i]];
+    if (!e[e.length - 1]) continue;                                // no 0 in front
+    const m = Number(e.slice().reverse().join(''));
+    if (partsOrder(m) && !FIAB_AVOID.has(m)) out.push({ n, m });   // the same digits in other places
+  }
+  return out;
+}
+const relOf = f => (f.n < f.m ? '<' : f.n > f.m ? '>' : '=');
+function firstDiff(n, m) {
+  const a = digitsOf(n).reverse(), b = digitsOf(m).reverse();
+  let i = 0; while (i < a.length && a[i] === b[i]) i++;
+  return i < a.length ? { p: a.length - 1 - i, a: a[i], b: b[i] } : null;
+}
+function signQ(id, f, { pre, skill, r }) {
+  const { n, m } = f, rel = relOf(f), right = formText(m), diff = firstDiff(n, m);
+  const same = [...String(n)].sort().join('') === [...String(m)].sort().join('');
+  const compare = rel === '=' ? `Every place is the same. So ${fmt(n)} is equal to ${fmt(m)}.`
+    : `Compare from the left. The first place that is different is the ${PLACES[diff.p]} place: ${diff.a} and ${diff.b}. So ${fmt(n)} is ${REL_WORD[rel]} ${fmt(m)}.`;
+  const how = `Write the parts as a number first. ${right} = ${fmt(m)}. ${compare}`;
+  const slips = {};
+  ['<', '>', '='].filter(s => s !== rel).forEach(s => {
+    slips[SIGNS[s]] = rel === '=' ? { tag: 'Missed that they are equal', say: `They are the same number. ${how}` }
+      : s === '=' ? { tag: 'Called them equal', say: `${same ? 'The digits are the same, but they are in other places. ' : ''}${how}` }
+      : { tag: 'Compared the wrong way', say: `${fmt(n)} is not ${REL_WORD[s]} ${fmt(m)}. ${how}` };
+  });
+  return {
+    id, skill, q: `${fmt(n)} ___ ${right}. Which sign goes in the blank?`, signs: true,
+    mistake: rel === '=' ? { type: 'E', n: m } : { type: 'C', n: Math.max(n, m), m: Math.min(n, m) },
+    ...(pre ? { kind: 'pre' } : { hint: 'Write the parts as a number first. Then compare from the left.', explain: { places: { n, n2: m, ...(diff ? { mark: diff.p } : {}) } } }),
+    explanation: how, choices: [...SIGN_LIST], answer: SIGNS[rel], slips
+  };
+}
+/* BP4 · a missing digit: "4?,512 is greater than 47,512. Which digit makes it true?" (one right digit among the choices) */
+function missingPool() {
+  const out = [];
+  for (let n = 10234; n <= 98765; n += 389) {
+    if (FIAB_AVOID.has(n)) continue;
+    const d = digitsOf(n);
+    for (let p = 1; p <= 4; p++) {
+      const x = d[p], lead = p === 4;
+      if (x <= 8 && x >= (lead ? 3 : 2)) out.push([n, p, 'greater']);
+      if (x <= 7 && x >= (lead ? 2 : 1)) out.push([n, p, 'less']);
+    }
+  }
+  return out;
+}
+// "4?512" → "4?,512": groups of 3 from the right (a regex \B would skip the comma next to the ?)
+const withCommas = s => { const out = []; for (let i = s.length; i > 0; i -= 3) out.unshift(s.slice(Math.max(0, i - 3), i)); return out.join(','); };
+const hideDigit = (n, p) => { const d = String(n).split(''); d[d.length - 1 - p] = '?'; return d.join(''); };
+function missingDigitQ(id, [n, p, rel], { pre, skill, r }) {
+  const d = digitsOf(n), x = d[p], lead = p === d.length - 1, big = rel === 'greater';
+  const shown = hideDigit(n, p);
+  const ok = range(lead ? 1 : 0, 9).filter(v => (big ? v > x : v < x));
+  const ans = ok[Math.floor(r() * ok.length)];
+  const other = range(lead ? 1 : 0, 9).filter(v => (big ? v < x : v > x));
+  const filled = v => n + (v - x) * pow(p);
+  const how = `${lead ? `The ? is in the ${PLACES[p]} place. It is the first place.` : 'The places to the left of the ? are the same.'} ` +
+    `With ${x}, the numbers would be equal. So the ? must be ${big ? 'more' : 'less'} than ${x}. ${ans} works: ${fmt(filled(ans))} is ${rel} than ${fmt(n)}.`;
+  return question({
+    id, skill, q: `${withCommas(shown)} is ${rel} than ${fmt(n)}. Which digit makes it true?`, noNear: true,
+    mistake: { type: 'C', n: Math.max(n, filled(ans)), m: Math.min(n, filled(ans)) },
+    ...(pre ? { kind: 'pre' } : { hint: 'Compare from the left. Find the place with the ?.', pic: { places: { n: shown, n2: n } }, explain: { places: { n: filled(ans), n2: n, mark: p } } }),
+    explanation: how
+  }, ans, [
+    { v: x, keep: true, tag: 'Made the numbers equal', say: `With ${x}, the numbers are equal. The question says ${rel} than. ${how}` },
+    ...shuffled(other, r).slice(0, 3).map(v => ({ v, tag: big ? 'Made it less' : 'Made it greater', say: `With ${v}, ${fmt(filled(v))} is ${big ? 'less' : 'greater'} than ${fmt(n)}. ${how}` }))
+  ], r);
+}
+function teachCompareForms(sk, { pick }) {
+  const sp = signPool(), mp = missingPool();
+  const swap = f => f.n !== f.m;
+  const f1 = one(pick, sp.filter(f => swap(f) && !(tradeOf(f.m) && f.m % 3 === 0)));
+  const f2 = one(pick, sp.filter(swap));
+  const [n3, p3] = one(pick, mp.filter(([, p, rel]) => p <= 3 && rel === 'greater'));
+  const [n4, p4] = one(pick, mp.filter(([, p, rel]) => p <= 3 && rel === 'less'));
+  const r1 = relOf(f1), r2 = relOf(f2), D1 = firstDiff(f1.n, f1.m), D2 = firstDiff(f2.n, f2.m);
+  const x3 = digitsOf(n3)[p3], ok3 = x3 + 1, x4 = digitsOf(n4)[p4], ok4 = x4 - 1;
+  const o2 = partsOrder(f2.m), listed2 = /\+/.test(formText(f2.m)) && !(tradeOf(f2.m) && f2.m % 3 === 0) ? Number(o2.map(p => digitsOf(f2.m)[p]).join('')) : null;
+  const otherPlaces = range(0, String(f2.n).length - 1).filter(p => p !== D2.p).slice(-2);
+  return [
+    watch('W1', sk, 'Make both sides numbers', [
+      `${fmt(f1.n)} ___ ${formText(f1.m)}.`,
+      `First write the parts as a number. ${formText(f1.m)} = ${fmt(f1.m)}.`,
+      `Compare from the left. The ${PLACES[D1.p]} place is different first: ${D1.a} and ${D1.b}.`,
+      `So ${fmt(f1.n)} is ${REL_WORD[r1]} ${fmt(f1.m)}. The sign is ${SIGNS[r1]}.`
+    ], { places: { n: f1.n, n2: f1.m, mark: D1.p } }),
+    step('S1', sk, `${fmt(f2.n)} ___ ${formText(f2.m)}. First, what number is ${formText(f2.m)}?`, fmt(f2.m), wrongsOf(fmt(f2.m), [
+      ...(listed2 ? [[fmt(listed2), `You wrote the digits in the order they are listed. Put each part in its place. ${fmt(f2.m)}.`]] : []),
+      [fmt(f2.n), `${fmt(f2.n)} is the other side. Write the parts as a number: ${fmt(f2.m)}.`],
+      [fmt(f2.m + pow(String(f2.m).length - 1)), `Look at the biggest place again. ${fmt(f2.m)}.`]
+    ])),
+    step('S2', sk, `Compare ${fmt(f2.n)} and ${fmt(f2.m)} from the left. Which place is different first?`, PLACES[D2.p],
+      otherPlaces.map(p => [PLACES[p], `Go from the left. The ${PLACES[D2.p]} place is different first: ${D2.a} and ${D2.b}.`]),
+      { pic: { places: { n: f2.n, n2: f2.m } } }),
+    step('S3', sk, 'So which sign goes in the blank?', SIGNS[r2], ['<', '>', '='].filter(s => s !== r2).map(s => [SIGNS[s],
+      `${D2.a} ${PLACES[D2.p]} and ${D2.b} ${PLACES[D2.p]}. So ${fmt(f2.n)} is ${REL_WORD[r2]} ${fmt(f2.m)}.`]),
+      { signs: true, explain: { places: { n: f2.n, n2: f2.m, mark: D2.p } } }),
+    watch('W2', sk, 'Which digit fits?', [
+      `${withCommas(hideDigit(n3, p3))} is greater than ${fmt(n3)}. Which digit makes it true?`,
+      'Compare from the left. The places to the left of the ? are the same.',
+      `With ${x3}, the numbers would be equal. So the ? must be more than ${x3}.`,
+      `${ok3} works: ${fmt(n3 + pow(p3))} is greater than ${fmt(n3)}.`
+    ], { places: { n: hideDigit(n3, p3), n2: n3 } }),
+    step('S4', sk, `${withCommas(hideDigit(n4, p4))} is less than ${fmt(n4)}. Which digit makes it true?`, ok4, [
+      [x4, `With ${x4}, the numbers are equal. The ? must be less than ${x4}.`],
+      [Math.min(9, x4 + 1), `With ${Math.min(9, x4 + 1)}, it is greater. The ? must be less than ${x4}.`]
+    ], { pic: { places: { n: hideDigit(n4, p4), n2: n4 } }, explain: { places: { n: n4 - pow(p4), n2: n4, mark: p4 } } })
+  ];
+}
+
+/* ── Rounding: Big Numbers ── the class's method: benchmarks → halfway → before or past (no digit rule) */
+function bigBenchPool(unit) {
+  const out = [];
+  const lo = unit === 100000 ? 100001 : 10001, step = unit === 100 ? 613 : unit === 1000 ? 937 : 9377;
+  for (let n = lo; n <= 989999; n += step) if (n % unit && n > unit && !FIAB_AVOID.has(n) && (unit !== 100000 || n >= 100000)) out.push([n, unit]);
+  return out;
+}
+function bigHalfPool(unit) {
+  const out = [];
+  const lo = unit === 1000 ? 10000 : unit === 10000 ? 10000 : 100000, hi = unit === 1000 ? 98000 : 980000;
+  for (let low = lo; low <= hi; low += unit) out.push([low + unit / 2, unit]);
+  return out;
+}
+const roundOf = (n, unit) => { const low = Math.floor(n / unit) * unit, half = low + unit / 2, up = n >= half; return { low, high: low + unit, half, up, to: up ? low + unit : low }; };
+const posOf = (n, R) => (n === R.half ? 'right at halfway. Halfway rounds up' : R.up ? 'past halfway' : 'before halfway');
+const takeAllUnits = (take, n) => [100, 1000, 10000, 100000].forEach(u => take([n, u]));
+function teachBigBench(sk, { pick, take }) {
+  const [n1, u1] = one(pick, bigBenchPool(10000)); takeAllUnits(take, n1);
+  const [n2, u2] = one(pick, bigBenchPool(1000)); takeAllUnits(take, n2);
+  const [h3, u3] = one(pick, bigHalfPool(10000));
+  const [h4, u4] = one(pick, bigHalfPool(100000));
+  const R1 = roundOf(n1, u1), R2 = roundOf(n2, u2), lo3 = h3 - u3 / 2, lo4 = h4 - u4 / 2;
+  return [
+    watch('W1', sk, 'Find the benchmarks', [
+      `${fmt(n1)} is between which two ten thousands?`,
+      `Count by ten thousands: ${fmt(R1.low)}, ${fmt(R1.high)}.`,
+      `${fmt(n1)} is more than ${fmt(R1.low)}. It is less than ${fmt(R1.high)}.`,
+      `So the benchmarks are ${pair(R1.low, R1.high)}.`
+    ], { rline: { n: n1, unit: u1, bench: true } }),
+    step('S1', sk, `${fmt(n2)} is between which two thousands?`, pair(R2.low, R2.high), [
+      [pair(Math.floor(n2 / 100) * 100, Math.floor(n2 / 100) * 100 + 100), `Those are hundreds. Count by thousands: ${pair(R2.low, R2.high)}.`],
+      [pair(R2.high, R2.high + 1000), `${fmt(n2)} is less than ${fmt(R2.high)}. Count by thousands: ${pair(R2.low, R2.high)}.`]
+    ], { pic: { rline: { n: n2, unit: u2, hideEnds: true } }, explain: { rline: { n: n2, unit: u2, bench: true } } }),
+    watch('W2', sk, 'Find halfway', [
+      `What is halfway from ${fmt(lo3)} to ${fmt(lo3 + u3)}?`,
+      `Halfway is the middle. It is ${fmt(u3 / 2)} past ${fmt(lo3)}.`,
+      `It is ${fmt(u3 / 2)} before ${fmt(lo3 + u3)}.`,
+      `So halfway is ${fmt(h3)}.`
+    ], { rline: { n: h3, unit: u3, half: true, hideN: true } }),
+    step('S2', sk, `What is halfway from ${fmt(lo4)} to ${fmt(lo4 + u4)}?`, fmt(h4), [
+      [fmt(lo4 + u4 / 20), `That is halfway for ten thousands. The middle of ${pair(lo4, lo4 + u4)} is ${fmt(h4)}.`],
+      [fmt(lo4 + u4), `${fmt(lo4 + u4)} is an end, not the middle. Halfway is ${fmt(h4)}.`]
+    ], { pic: { rline: { n: h4, unit: u4, hideN: true } }, explain: { rline: { n: h4, unit: u4, half: true, hideN: true } } })
+  ];
+}
+// a worked rounding, 3 lines: the benchmarks and halfway, before or past, the answer
+const roundLines = (n, unit) => {
+  const R = roundOf(n, unit);
+  return [`The benchmarks are ${pair(R.low, R.high)}. Halfway is ${fmt(R.half)}.`, `${fmt(n)} is ${posOf(n, R)}.`, `So ${fmt(n)} rounds ${R.up ? 'up' : 'down'} to ${fmt(R.to)}.`];
+};
+const roundLine = (n, unit) => ({ rline: { n, unit, bench: true, half: true, arrow: roundOf(n, unit).to } });
+function roundSteps(ids, sk, n, unit) {
+  const R = roundOf(n, unit), name = PLACE[unit], smaller = unit / 10, lowS = Math.floor(n / smaller) * smaller;
+  const at = n === R.half, pos = at ? 'right at halfway' : R.up ? 'past halfway' : 'before halfway';
+  const which = unit === 100000 ? 'Which two benchmarks is it between? Count by hundred thousands.' : `Which two ${name}s is it between?`;
+  return [
+    step(ids[0], sk, `Round ${fmt(n)} to the nearest ${name}. ${which}`, pair(R.low, R.high), [
+      [pair(lowS, lowS + smaller), `Those are ${PLACE[smaller]}s. Count by ${name}s: ${pair(R.low, R.high)}.`],
+      [pair(R.high, R.high + unit), `${fmt(n)} is less than ${fmt(R.high)}. Count by ${name}s: ${pair(R.low, R.high)}.`]
+    ], { pic: { rline: { n, unit, hideEnds: true } } }),
+    step(ids[1], sk, `Halfway is ${fmt(R.half)}. Is ${fmt(n)} before or past halfway?`, pos, at
+      ? [['before halfway', `${fmt(n)} is not less than ${fmt(R.half)}. It is right at halfway.`], ['past halfway', `${fmt(n)} is not more than ${fmt(R.half)}. It is right at halfway.`]]
+      : [
+        [R.up ? 'before halfway' : 'past halfway', `${fmt(n)} is ${R.up ? 'more' : 'less'} than ${fmt(R.half)}. It is ${pos}.`],
+        ['right at halfway', `Halfway is ${fmt(R.half)}. ${fmt(n)} is not ${fmt(R.half)}. It is ${pos}.`]
+      ], { pic: { rline: { n, unit, bench: true, half: true } } }),
+    step(ids[2], sk, `So ${fmt(n)} rounds to what?`, fmt(R.to), [
+      [fmt(R.up ? R.low : R.high), `${at ? 'Halfway rounds up' : R.up ? 'Past halfway rounds up' : 'Before halfway rounds down'}. ${fmt(n)} rounds to ${fmt(R.to)}.`],
+      [fmt(Math.round(n / smaller) * smaller) === fmt(R.to) ? fmt(n) : fmt(Math.round(n / smaller) * smaller), `The question says ${name}. ${fmt(n)} rounds to ${fmt(R.to)}.`]
+    ], { explain: roundLine(n, unit) })
+  ];
+}
+function teachRoundBig(sk, { pick, take }) {
+  const [n1] = one(pick, bigBenchPool(1000)); takeAllUnits(take, n1);
+  const [n2, u2] = one(pick, [...bigBenchPool(1000), ...bigBenchPool(10000)]); takeAllUnits(take, n2);
+  const [n3] = one(pick, bigBenchPool(10000)); takeAllUnits(take, n3);
+  return [
+    watch('W1', sk, 'Round to the nearest thousand', [`Round ${fmt(n1)} to the nearest thousand.`, ...roundLines(n1, 1000)], roundLine(n1, 1000)),
+    ...roundSteps(['S1', 'S2', 'S3'], sk, n2, u2),
+    watch('W2', sk, 'Round to the nearest ten thousand', [`Round ${fmt(n3)} to the nearest ten thousand.`, ...roundLines(n3, 10000)], roundLine(n3, 10000))
+  ];
+}
+function teachRoundAny(sk, { pick, take }) {
+  const differs = n => roundOf(n, 100).to !== roundOf(n, 1000).to;    // the two places give two answers
+  const [n1] = one(pick, bigBenchPool(1000).filter(([n]) => differs(n) && n >= 100000)); takeAllUnits(take, n1);
+  const [n2, u2] = one(pick, [...bigBenchPool(100), ...bigBenchPool(100000)]); takeAllUnits(take, n2);
+  return [
+    watch('W1', sk, 'Read the place first', [`Round ${fmt(n1)} to the nearest thousand.`, ...roundLines(n1, 1000)], roundLine(n1, 1000)),
+    watch('W2', sk, 'A new place, a new answer', [`Now round ${fmt(n1)} to the nearest hundred.`, ...roundLines(n1, 100), 'The place changes the answer.'], roundLine(n1, 100)),
+    ...roundSteps(['S1', 'S2', 'S3'], sk, n2, u2)
+  ];
+}
+
+/* BR4 · which number rounds to it? "Which number rounds to 47,000? Round to the nearest thousand." Four numbers, one rounds
+   to it. The right one is sometimes below 47,000, sometimes above it, sometimes right at halfway below it. */
+function roundsToPool() {
+  const out = [];
+  for (const unit of [1000, 10000]) {
+    const lo = unit === 1000 ? 11000 : 20000, hi = unit === 1000 ? 98000 : 970000, st = unit === 1000 ? 1000 : 30000;
+    for (let T = lo; T <= hi; T += st) if (!FIAB_TARGETS.has(T)) out.push([T, unit]);
+  }
+  return out;
+}
+const sideOf = (T, unit) => { const s = seedOf(`side-${T}-${unit}`) % 5; return s < 2 ? 'below' : s < 4 ? 'above' : 'half'; };
+// a number strictly between lo and hi that is not a round number (r picks it)
+const between = (lo, hi, r, unit) => { for (let i = 0; i < 40; i++) { const v = lo + 1 + Math.floor(r() * (hi - lo - 1)); if (v % (unit / 10) && !FIAB_AVOID.has(v)) return v; } return lo + 1 + Math.floor((hi - lo) / 3); };
+function roundSay(c, unit) { const R = roundOf(c, unit); return `${fmt(c)} is between ${pair(R.low, R.high)}. Halfway is ${fmt(R.half)}. ${fmt(c)} is ${posOf(c, R)}. So it rounds ${R.up ? 'up' : 'down'} to ${fmt(R.to)}.`; }
+function roundsToQ(id, [T, unit], { pre, skill, r }) {
+  const name = PLACE[unit], h = unit / 2, side = sideOf(T, unit);
+  const right = side === 'half' ? T - h : side === 'below' ? between(T - h, T, r, unit) : between(T, T + h, r, unit);
+  const how = roundSay(right, unit);
+  const wrongs = [
+    { v: between(T - unit, T - h, r, unit), tag: 'Before halfway: rounds down' },
+    { v: between(T - unit, T - h, r, unit), tag: 'Before halfway: rounds down' },
+    { v: between(T - unit - h, T - unit, r, unit), tag: 'Past halfway: rounds up' },
+    { v: between(T + h, T + unit, r, unit), tag: 'Past halfway: rounds up' },
+    { v: T + h, tag: 'Halfway rounds up' }
+  ].map(w => ({ ...w, say: `${roundSay(w.v, unit)} Not ${fmt(T)}. ${how}` }));
+  return question({
+    id, skill, q: `Which number rounds to ${fmt(T)}? Round to the nearest ${name}.`, noNear: true, commas: true,
+    mistake: { type: 'R', n: right, unit },
+    ...(pre ? { kind: 'pre' } : { hint: `Round each one to the nearest ${name}. Use benchmarks and halfway.`, explain: { rline: { n: right, unit, bench: true, half: true, arrow: T } } }),
+    explanation: how
+  }, right, wrongs, r);
+}
+function teachRoundsTo(sk, { pick }) {
+  const [T1, u1] = one(pick, roundsToPool().filter(([, u]) => u === 1000));
+  const [T2, u2] = one(pick, roundsToPool().filter(([, u]) => u === 10000));
+  const r = rng(seedOf(`BR4-teach-${T1}-${T2}`));
+  const c1 = between(T1 - u1 / 2, T1, r, u1), w2 = between(T2 + u2 / 2, T2 + u2, r, u2), c2 = between(T2, T2 + u2 / 2, r, u2);
+  const W = roundOf(w2, u2), C2 = roundOf(c2, u2);
+  return [
+    watch('W1', sk, 'Which one rounds to it?', [
+      `Which number rounds to ${fmt(T1)}? Round to the nearest thousand.`,
+      'Round each number. Find its benchmarks and halfway.',
+      ...roundLines(c1, u1),
+      `${fmt(c1)} is the one.`
+    ], roundLine(c1, u1)),
+    step('S1', sk, `Which number rounds to ${fmt(T2)}? Round to the nearest ten thousand. Look at ${fmt(w2)}. Halfway is ${fmt(W.half)}. Is it before or past halfway?`, 'past halfway', [
+      ['before halfway', `${fmt(w2)} is more than ${fmt(W.half)}. It is past halfway.`],
+      ['right at halfway', `Halfway is ${fmt(W.half)}. ${fmt(w2)} is past it.`]
+    ], { pic: { rline: { n: w2, unit: u2, bench: true, half: true } } }),
+    step('S2', sk, `So does ${fmt(w2)} round to ${fmt(T2)}?`, 'No', [
+      ['Yes', `Past halfway rounds up. ${fmt(w2)} rounds up to ${fmt(W.to)}. Not ${fmt(T2)}.`]
+    ], { explain: roundLine(w2, u2) }),
+    step('S3', sk, `Now look at ${fmt(c2)}. Does it round to ${fmt(T2)}?`, 'Yes', [
+      ['No', `${fmt(c2)} is before halfway (${fmt(C2.half)}). It rounds down to ${fmt(T2)}.`]
+    ], { pic: { rline: { n: c2, unit: u2, bench: true, half: true } }, explain: roundLine(c2, u2) })
+  ];
+}
+
+const checkWatch = (title, lines) => sk => [watch('W1', sk, title, lines)];
+const BIG_LESSONS = [
+  {
+    id: 'BP1', title: 'Big Number Places', skill: 'Value of a digit (big numbers)',
+    pre: { pool: bigValuePool, build: valueQ },
+    teach: teachBigPlaces,
+    parts: [{ pool: bigValuePool, build: valueQ, n: 10 }]
+  },
+  {
+    id: 'BP2', title: 'Parts in Any Order', skill: 'Parts in any order',
+    pre: { pool: mixedPartsPool, build: mixedPartsQ },
+    teach: teachMixedParts,
+    parts: [{ pool: mixedPartsPool, build: mixedPartsQ, n: 10 }]
+  },
+  {
+    id: 'BP3', title: 'More Than 9 in a Place', skill: 'More than 9 in a place',
+    pre: { pool: regroupPool, build: regroupQ },
+    teach: teachTrade,
+    parts: [
+      { pool: regroupPool, build: regroupQ, n: 7, filter: f => f.length === 1 },
+      { pool: regroupPool, build: regroupQ, n: 3, filter: f => f.length === 2 }
+    ]
+  },
+  {
+    id: 'BP4', title: 'Compare in Any Form', skill: 'Compare in any form',
+    pre: { pool: signPool, build: signQ },
+    teach: teachCompareForms,
+    parts: [
+      { pool: signPool, build: signQ, n: 2, filter: f => relOf(f) === '=' },
+      { pool: signPool, build: signQ, n: 2, filter: f => relOf(f) === '<' },
+      { pool: signPool, build: signQ, n: 2, filter: f => relOf(f) === '>' },
+      { pool: signPool, build: signQ, n: 1 },
+      { pool: missingPool, build: missingDigitQ, n: 3, skill: 'Missing digit' }
+    ]
+  },
+  {
+    id: 'BP5', title: 'Big Place Value Check', skill: 'Place value: big numbers (check)', check: true,
+    teach: checkWatch('The big place value check', [
+      'This is the check for Place Value: Big Numbers. It has 20 questions.',
+      'Find what a digit is worth. Put parts in their places. Trade 10 for 1. Compare numbers.',
+      'There are no hints and no pictures this time.',
+      'Get 15 of 20 right to finish Place Value: Big Numbers.'
+    ]),
+    parts: [
+      { pool: bigValuePool, build: noHelp(valueQ), n: 5 },
+      { pool: mixedPartsPool, build: noHelp(mixedPartsQ), n: 5 },
+      { pool: regroupPool, build: noHelp(regroupQ), n: 4 },
+      { pool: signPool, build: noHelp(signQ), n: 1, filter: f => relOf(f) === '=' },
+      { pool: signPool, build: noHelp(signQ), n: 3, filter: f => relOf(f) !== '=' },
+      { pool: missingPool, build: noHelp(missingDigitQ), n: 2 }
+    ]
+  },
+  {
+    id: 'BR1', title: 'Benchmarks for Big Numbers', skill: 'Benchmarks (big numbers)',
+    pre: { pool: () => bigBenchPool(10000), build: benchQ },
+    teach: teachBigBench,
+    parts: [
+      { pool: () => bigBenchPool(1000), build: benchQ, n: 2 },
+      { pool: () => bigBenchPool(10000), build: benchQ, n: 2 },
+      { pool: () => bigBenchPool(100000), build: benchQ, n: 2 },
+      { pool: () => bigHalfPool(1000), build: halfwayQ, n: 1, skill: 'Halfway (big numbers)' },
+      { pool: () => bigHalfPool(10000), build: halfwayQ, n: 2, skill: 'Halfway (big numbers)' },
+      { pool: () => bigHalfPool(100000), build: halfwayQ, n: 1, skill: 'Halfway (big numbers)' }
+    ]
+  },
+  {
+    id: 'BR2', title: 'Round Big Numbers', skill: 'Round big numbers',
+    pre: { pool: () => bigBenchPool(10000), build: roundQ },
+    teach: teachRoundBig,
+    parts: [
+      { pool: () => bigBenchPool(1000), build: roundQ, n: 5 },
+      { pool: () => bigBenchPool(10000), build: roundQ, n: 5 }
+    ]
+  },
+  {
+    id: 'BR3', title: 'Round to Any Place', skill: 'Round to any place',
+    pre: { pool: () => [...bigBenchPool(100), ...bigBenchPool(100000)], build: roundQ },
+    teach: teachRoundAny,
+    parts: [
+      { pool: () => bigBenchPool(100), build: roundQ, n: 2 },
+      { pool: () => bigBenchPool(1000), build: roundQ, n: 3 },
+      { pool: () => bigBenchPool(10000), build: roundQ, n: 3 },
+      { pool: () => bigBenchPool(100000), build: roundQ, n: 2 }
+    ]
+  },
+  {
+    id: 'BR4', title: 'Which One Rounds To It?', skill: 'Which number rounds to it',
+    pre: { pool: roundsToPool, build: roundsToQ },
+    teach: teachRoundsTo,
+    parts: [
+      { pool: roundsToPool, build: roundsToQ, n: 6, filter: ([, u]) => u === 1000 },
+      { pool: roundsToPool, build: roundsToQ, n: 4, filter: ([, u]) => u === 10000 }
+    ]
+  },
+  {
+    id: 'BR5', title: 'Big Rounding Check', skill: 'Rounding: big numbers (check)', check: true,
+    teach: checkWatch('The big rounding check', [
+      'This is the check for Rounding: Big Numbers. It has 20 questions.',
+      'Find the benchmarks. Find halfway. Before halfway rounds down. Halfway or past rounds up.',
+      'There are no hints and no pictures this time.',
+      'Get 15 of 20 right to finish Rounding: Big Numbers.'
+    ]),
+    parts: [
+      { pool: () => [...bigBenchPool(1000), ...bigBenchPool(10000), ...bigBenchPool(100000)], build: noHelp(benchQ), n: 3 },
+      { pool: () => [...bigHalfPool(10000), ...bigHalfPool(100000)], build: noHelp(halfwayQ), n: 2 },
+      { pool: () => bigBenchPool(1000), build: noHelp(roundQ), n: 4 },
+      { pool: () => bigBenchPool(10000), build: noHelp(roundQ), n: 4 },
+      { pool: () => [...bigBenchPool(100), ...bigBenchPool(100000)], build: noHelp(roundQ), n: 3 },
+      { pool: roundsToPool, build: noHelp(roundsToQ), n: 4 }
+    ]
+  }
+];
+LESSONS.push(...BIG_LESSONS);
+
+/* A typed record with a big number comes back in the Big Numbers lesson that teaches it (the same records as the
+   other strands: V E C N B H R, so the seed format does not change) */
+const BIG_UNITS = [100, 1000, 10000, 100000];
+function fitsBig(lessonId, rec) {
+  if (!rec || !rec.type || !(rec.n > 0)) return false;
+  const { type, n, p, unit } = rec, digits = String(n).length, is = (...ids) => ids.includes(lessonId);
+  switch (type) {
+    case 'V': { const d = digitsOf(n); return is('BP1', 'BP5') && digits >= 5 && digits <= 6 && p >= 2 && p < digits && d[p] > 0 && d.indexOf(d[p]) === p && d.lastIndexOf(d[p]) === p; }
+    case 'E': return digits >= 4 && digits <= 6 && (is('BP3') ? !!tradeOf(n) : is('BP2', 'BP4', 'BP5') && !!partsOrder(n));
+    case 'N': return is('BP3', 'BP5') && [100, 1000].includes(unit) && n % unit === 0 && n / unit >= 11 && n / unit <= 99 && (n / unit) % 10 !== 0;
+    case 'C': return is('BP4', 'BP5') && rec.m > 0 && rec.m !== n && digits >= 4 && String(rec.m).length === digits && !!partsOrder(rec.m);
+    case 'B': return is('BR1', 'BR5') && unit >= 1000 && BIG_UNITS.includes(unit) && n % unit !== 0 && n > unit;
+    case 'H': return is('BR1') && unit >= 1000 && BIG_UNITS.includes(unit) && n % unit === unit / 2 && n > unit;
+    case 'R': return BIG_UNITS.includes(unit) && n >= 1000 && n % unit !== 0 && n > unit && (is('BR3', 'BR5') || (is('BR2') && (unit === 1000 || unit === 10000)));
+    default: return false;
+  }
+}
+function bigItem(lessonId, rec, id, r, skill) {
+  const q = bigItemOf(lessonId, rec, id, { pre: false, skill, r });
+  if (/^(BP5|BR5)$/.test(lessonId)) { delete q.hint; delete q.pic; }    // a check: no hint, no picture
+  return q;
+}
+function bigItemOf(lessonId, rec, id, o) {
+  const { type, n, unit } = rec;
+  if (type === 'V') return valueQ(id, [n, rec.p], o);
+  if (type === 'E') return lessonId === 'BP3' ? regroupQ(id, [n], o) : lessonId === 'BP4' ? signQ(id, { n, m: n }, o) : mixedPartsQ(id, [n], o);
+  if (type === 'N') return regroupQ(id, [n, unit], o);
+  if (type === 'C') return signQ(id, { n, m: rec.m }, o);
+  if (type === 'B') return benchQ(id, [n, unit], o);
+  if (type === 'H') return halfwayQ(id, [n, unit], o);
+  return roundQ(id, [n, unit], o);
+}
 
 /* ═══ A STUDENT'S OWN FACTS ═══
    A missed fact from an earlier try: { op: '+' | '−', a, b }. fits(lessonId, f) says whether the
@@ -1588,6 +2245,7 @@ function ownKey(rec) {
 }
 function fitsOwn(lessonId, rec) {
   if (!rec) return false;
+  if (/^(BP|BR)/.test(lessonId)) return fitsBig(lessonId, rec);
   if (!rec.type) {
     if (rec.op === TIMES) {
       const { a, b } = rec, small = Math.min(a, b), big = Math.max(a, b);
@@ -1617,6 +2275,7 @@ function fitsOwn(lessonId, rec) {
 }
 function ownItem(lessonId, rec, id, r, skill) {
   const o = { pre: false, skill, r };
+  if (/^(BP|BR)/.test(lessonId)) return bigItem(lessonId, rec, id, r, skill);
   if (!rec.type) {
     if (rec.op === TIMES && /^PV[678]$/.test(lessonId)) {
       const { a, b } = rec;
@@ -1641,7 +2300,9 @@ const api = { MINUS, TIMES, rng, seedOf, shuffled, range, question, LESSONS, fit
   valuePool, expandedPool, comparePool, renamePool, times10Pool, multiplesPool, benchPool, halfPool,
   groupsQ, arrayQ, skipQ, timesQ, multQ, groupsPool, arrayPool, skipPool, timesPool, factsPool,
   countOnQ, countBackQ, partnerQ, make10Q, teenQ, countUpQ, familyQ, mixedQ,
-  countOnPool, countBackPool, make10Pool, teenPool, countUpPool, familyPool, mixedPool };
+  countOnPool, countBackPool, make10Pool, teenPool, countUpPool, familyPool, mixedPool,
+  mixedPartsQ, regroupQ, signQ, missingDigitQ, roundsToQ, partsOrder, tradeOf, formText,
+  bigValuePool, mixedPartsPool, regroupPool, signPool, missingPool, bigBenchPool, bigHalfPool, roundsToPool, SIGN_LIST };
 root.LabLessons = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

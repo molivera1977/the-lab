@@ -132,20 +132,38 @@
       `<div class="lv-bars-row" aria-hidden="true"><span class="lv-bar-name">${cfg.t} times</span>${cell.repeat(cfg.t)}${cfg.show != null ? `<span class="lv-bar-total">= ${cfg.show}</span>` : '<span class="lv-bar-total">= ?</span>'}</div></div>`;
   }
 
-  /* ── PLACE CHART ── cfg = { n, mark } (mark = a place: 0 ones, 1 tens …) or { parts: [300, 40, 7] } (expanded form cards) */
+  /* ── PLACE CHART ── cfg = { n, mark } (mark = a place: 0 ones, 1 tens …) or { parts: [300, 40, 7] } (expanded form cards;
+     a card can be words: "4 tens") or { counts: [4, 12, 3], trade, n } (a count in each place, ones first: "12 hundreds"
+     does not fit one place; trade = the feedback row after trading 10 for 1, which is n). n may hold a "?" (a missing digit). */
   const PLACE_NAMES = ['Ones', 'Tens', 'Hundreds', 'Thousands', 'Ten Thousands', 'Hundred Thousands'];
+  const commas = s => { const out = []; for (let i = s.length; i > 0; i -= 3) out.unshift(s.slice(Math.max(0, i - 3), i)); return out.join(','); };
+  const showNum = v => (/\?/.test(String(v)) ? commas(String(v)) : Number(v).toLocaleString('en-US'));   // "4?512" → "4?,512"
+  function countsHTML(cfg) {
+    const counts = cfg.counts, width = Math.max(counts.length, cfg.trade && cfg.n != null ? String(cfg.n).length : 0);
+    const cols = Array.from({ length: width }, (_, i) => width - 1 - i);
+    const name = (i, c) => (c === 1 ? PLACE_NAMES[i].replace(/s$/, '') : PLACE_NAMES[i]).toLowerCase();
+    const head = cols.map(i => `<th>${PLACE_NAMES[i]}</th>`).join('');
+    const row1 = cols.map(i => `<td class="${counts[i] > 9 ? 'lv-mark' : ''}">${counts[i] ? counts[i] : ''}</td>`).join('');
+    const d = cfg.trade && cfg.n != null ? String(cfg.n).padStart(width, ' ').split('').reverse() : null;
+    const row2 = d ? cols.map(i => `<td class="lv-zero">${d[i] === ' ' ? '' : d[i]}</td>`).join('') : '';
+    const listed = cols.filter(i => counts[i]).map(i => `${counts[i]} ${name(i, counts[i])}`).join(', ');
+    const said = `A place chart: ${listed}.` + (d ? ` Trade 10 for 1. It is ${showNum(cfg.n)}.` : '');
+    return `<div class="lv lv-places" role="img" aria-label="${esc(said)}"><table class="lv-place-table" aria-hidden="true"><tr>${head}</tr><tr>${row1}</tr>` +
+      (d ? `<tr>${row2}</tr>` : '') + `</table>` + (d ? `<div class="lv-cap" aria-hidden="true">= ${showNum(cfg.n)}</div>` : '') + `</div>`;
+  }
   function placesHTML(cfg) {
     if (cfg.parts) {
       const said = `Expanded form parts: ${cfg.parts.join(', ')}.`;
-      return `<div class="lv lv-parts" role="img" aria-label="${esc(said)}">${cfg.parts.map(p => `<span class="lv-part" aria-hidden="true">${Number(p).toLocaleString('en-US')}</span>`).join('<span class="lv-plus" aria-hidden="true">+</span>')}</div>`;
+      return `<div class="lv lv-parts" role="img" aria-label="${esc(said)}">${cfg.parts.map(p => `<span class="lv-part" aria-hidden="true">${esc(typeof p === 'number' ? Number(p).toLocaleString('en-US') : p)}</span>`).join('<span class="lv-plus" aria-hidden="true">+</span>')}</div>`;
     }
+    if (cfg.counts) return countsHTML(cfg);
     const d = String(cfg.n).split('').reverse();
     const cols = d.map((ch, i) => i).reverse();
     const head = cols.map(i => `<th class="${i === cfg.mark ? 'lv-mark' : ''}">${PLACE_NAMES[i]}</th>`).join('');
     const rowOf = digs => cols.map(i => `<td class="${i === cfg.mark ? 'lv-mark' : ''}">${digs[i] == null ? '' : digs[i]}</td>`).join('');
     const row = rowOf(d) + (cfg.n2 != null ? `</tr><tr>${rowOf(String(cfg.n2).split('').reverse())}` : '');
     const val = cfg.mark != null && cfg.n2 == null ? `${d[cfg.mark]} ${PLACE_NAMES[cfg.mark].toLowerCase()} = ${(Number(d[cfg.mark]) * 10 ** cfg.mark).toLocaleString('en-US')}` : '';
-    const said = (cfg.n2 != null ? `A place chart for ${Number(cfg.n).toLocaleString('en-US')} and ${Number(cfg.n2).toLocaleString('en-US')}.` : `A place chart for ${Number(cfg.n).toLocaleString('en-US')}.`) + (val ? ` ${val}.` : '');
+    const said = (cfg.n2 != null ? `A place chart for ${showNum(cfg.n)} and ${showNum(cfg.n2)}.` : `A place chart for ${showNum(cfg.n)}.`) + (val ? ` ${val}.` : '');
     return `<div class="lv lv-places" role="img" aria-label="${esc(said)}"><table class="lv-place-table" aria-hidden="true"><tr>${head}</tr><tr>${row}</tr></table>` +
       (val ? `<div class="lv-cap" aria-hidden="true">${val}</div>` : '') + `</div>`;
   }

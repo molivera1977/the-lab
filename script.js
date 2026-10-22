@@ -60,6 +60,10 @@ const STRANDS = [
   { id: 'mu', icon: '✖️', name: 'Multiplying', lessons: ['MU1', 'MU2', 'MU3', 'MU4', 'MU5', 'MU6', 'MU7'], after: 'as' },
   { id: 'pv', icon: '🔢', name: 'Place Value', lessons: ['PV1', 'PV2', 'PV3', 'PV4', 'PV5', 'PV6', 'PV7', 'PV8', 'PV9'], after: 'as' },
   { id: 'ro', icon: '🎯', name: 'Rounding', lessons: ['RO1', 'RO2', 'RO3', 'RO4', 'RO5', 'RO6'], after: 'as' },
+  // Big Numbers, a stretch for the middle and top students (Marcos 10/22, after the Place Value FIAB): each one waits for
+  // Place Value / Rounding only when that strand is on the student's plan too (lessonWait)
+  { id: 'bp', icon: '🚀', name: 'Place Value: Big Numbers', lessons: ['BP1', 'BP2', 'BP3', 'BP4', 'BP5'], after: 'pv' },
+  { id: 'br', icon: '🗺️', name: 'Rounding: Big Numbers', lessons: ['BR1', 'BR2', 'BR3', 'BR4', 'BR5'], after: 'ro' },
   // Reading for Meaning (Marcos 10/20: "build a comprehension strand"): stands alone, no math gate
   { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3'] }
 ];
@@ -92,6 +96,16 @@ const LESSONS = {
   RO4: { title: 'Round to the Nearest Hundred',     icon: '🎯' },
   RO5: { title: 'Round to the Place Named',         icon: '🗺️' },
   RO6: { title: 'Rounding Check',                   icon: '🏁', check: true, hints: false, pre: false },
+  BP1: { title: 'Big Number Places',                icon: '🔭' },
+  BP2: { title: 'Parts in Any Order',               icon: '🧩' },
+  BP3: { title: 'More Than 9 in a Place',           icon: '🔁' },
+  BP4: { title: 'Compare in Any Form',              icon: '⚖️' },
+  BP5: { title: 'Big Place Value Check',            icon: '🏁', check: true, hints: false, pre: false },
+  BR1: { title: 'Benchmarks for Big Numbers',       icon: '📍' },
+  BR2: { title: 'Round Big Numbers',                icon: '🎯' },
+  BR3: { title: 'Round to Any Place',               icon: '🗺️' },
+  BR4: { title: 'Which One Rounds To It?',          icon: '🔎' },
+  BR5: { title: 'Big Rounding Check',               icon: '🏁', check: true, hints: false, pre: false },
   // the passage, the questions and the stories: data/rcN.js, read by reading.js; the screens: reading-ui.js
   RC1: { title: 'Find the Proof',                   icon: '🔍', reading: true, hints: false },
   RC2: { title: 'Part A and Part B',                icon: '🅰️', reading: true, hints: false },
@@ -114,6 +128,12 @@ const LESSON_GOALS = {
   RO1: 'find the two numbers a number is between', RO2: 'find the number halfway between',
   RO3: 'round to the nearest ten', RO4: 'round to the nearest hundred', RO5: 'round to the place the question names',
   RO6: 'show what you know about rounding',
+  BP1: 'know what each digit is worth in big numbers', BP2: 'put mixed-up parts in their places',
+  BP3: 'trade 10 of a place for 1 of the next place', BP4: 'compare numbers written in different ways',
+  BP5: 'show what you know about big numbers',
+  BR1: 'find the benchmarks and halfway for big numbers', BR2: 'round big numbers to the nearest thousand or ten thousand',
+  BR3: 'round to the place the question names', BR4: 'find the number that rounds to a number',
+  BR5: 'show what you know about rounding big numbers',
   RC1: 'find the ONE sentence that proves an idea', RC2: 'answer Part A, then prove your answer in Part B',
   RC3: 'click the sentences that show an idea'
 };
@@ -520,6 +540,9 @@ function numToWord(n) {
 }
 function convertToSpokenText(raw) {
   return raw
+    .replace(/_{3,}/g, ' blank ')                                                  // "8,045 ___ 4 tens + …" (Big Numbers)
+    .replace(/(^|\s)[<>=]\s+(?=(?:less|greater|equal)\b)/g, '$1')                  // "< less than" is said "less than"
+    .replace(/\?(?=[\d,])|(^|\s)\?(?=\s)/g, (m, s) => `${s || ''} question mark `)   // a missing digit: "4?,512", "the ? is" (not "6 + 8?")
     .replace(/\u00a0{2,}/g, ', ')
     .replace(/(\d+)\s+(\d+)\/(\d+)/g, (_, w, n, d) => {
       const dWord = denomToWord(d), nNum = parseInt(n);
@@ -1385,7 +1408,7 @@ const app = {
       const item = { ...q, mine: true, before: [...f.picks] };
       // their earlier wrong answer is always a choice (a repeat can only be seen if it can be picked):
       // it takes the place of the last wrong choice, with the problem worked out in its note
-      const shapeOk = p => (/ and /.test(item.answer) ? / and /.test(p) : / than | equal /.test(item.answer) ? / than | equal /.test(p) : /^\d+$/.test(p));
+      const shapeOk = p => (item.signs ? /^[<>=] /.test(p) : /^[<>=] /.test(p) ? false : / and /.test(item.answer) ? / and /.test(p) : / than | equal /.test(item.answer) ? / than | equal /.test(p) : /^\d+$/.test(p));
       const earlier = [...f.picks].reverse().map(showPick).find(p => shapeOk(normPick(p)) && normPick(p) !== normPick(item.answer));
       if (earlier && !item.choices.includes(earlier)) {
         const out = item.choices.filter(c => c !== item.answer).pop();
@@ -1458,8 +1481,8 @@ const app = {
       const firstQ = rawBank.findIndex(isScored);
       const last = example.before.length ? showPick(example.before[example.before.length - 1]) : '';
       // a compare question names its numbers only in the choices: say them, and read their pick as a quote
-      const nums = example.mistake && example.mistake.type === 'C' ? [example.mistake.n, example.mistake.m].map(showPick) : null;
-      const said = / than | equal /.test(last) ? `"${last}"` : last;
+      const nums = example.mistake && example.mistake.type === 'C' && !example.signs ? [example.mistake.n, example.mistake.m].map(showPick) : null;
+      const said = /^[<>=] /.test(last) ? last : / than | equal /.test(last) ? `"${last}"` : last;   // a sign pick is said as its words
       const lines = [`This one is yours. You missed it before.`, nums ? `Compare ${nums[0]} and ${nums[1]}. Which sentence is true?` : example.q, ...(last ? [`You picked ${said}.`] : []),
         ...String(example.explanation).split(/(?<=\.)\s+/).filter(Boolean)];
       rawBank.splice(firstQ < 0 ? rawBank.length : firstQ, 0, { id: `${form}-YOU`, kind: 'watch', skill: 'Lab step', mine: true,
@@ -1475,6 +1498,7 @@ const app = {
 
     const shuffleQ = q => {
       if (q.type === 'hot') return { ...q };     // click sentences stay in the passage's order
+      if (q.signs) return { ...q };              // < > = always in the same order (like the FIAB)
       if (q.type === 'ebsr') {
         const mix = part => ({ ...part, choices: [...part.choices].sort(() => Math.random() - 0.5) });
         return { ...q, partA: mix(q.partA), partB: mix(q.partB) };
@@ -1761,7 +1785,7 @@ const app = {
         if (!btn.querySelector('.wrd')) {
           const parts = text.split(/(\s+)/);
           let choiceHTML = `<strong>${['A','B','C','D'][i]}.</strong>&nbsp;`;
-          parts.forEach(w => { choiceHTML += /^\s+$/.test(w) ? w : (w ? `<span class="wrd">${formatMathText(w)}</span>` : ''); });
+          parts.forEach((w, k) => { choiceHTML += /^\s+$/.test(w) ? w : !w ? '' : k === 0 && /^[<>=] /.test(text) ? w : `<span class="wrd">${formatMathText(w)}</span>`; });
           btn.innerHTML = choiceHTML.trim();
         }
         const hlSpans = Array.from(btn.querySelectorAll('.wrd'));
@@ -1825,7 +1849,7 @@ const app = {
     let html = q.q.split(/\s+/).map(w => `<span class="wrd">${formatMathText(w)}</span>`).join(' ');
     if (q.hint) html += hintBoxHTML(q.hint, this.hintShown);
     qt.innerHTML = html;
-    const spans = Array.from(qt.querySelectorAll('.wrd')).filter(el => /[A-Za-z0-9+=×−]/.test(el.textContent));
+    const spans = Array.from(qt.querySelectorAll('.wrd')).filter(el => /[A-Za-z0-9+=×−_]/.test(el.textContent));   // _ : the blank is said, so it lights up
     const text = convertToSpokenText(q.q + (q.hint && this.hintShown ? ' Hint: ' + q.hint : ''));
     const row = document.createElement('div');
     row.className = 'listen-row q-listen-row';
@@ -1867,7 +1891,7 @@ const app = {
     fb.style.display = 'block';
     // one line per place / idea ("\n" in the data); the voice reads it all in one go
     fb.innerHTML = q.text.split('\n').map((line, i, all) => `<div class="watch-line${i === all.length - 1 ? ' watch-sum' : ''}">${wrapWords(formatMathText(line))}</div>`).join('');
-    const spans = Array.from(fb.querySelectorAll('.wrd')).filter(el => /[A-Za-z0-9+=×−]/.test(el.textContent));
+    const spans = Array.from(fb.querySelectorAll('.wrd')).filter(el => /[A-Za-z0-9+=×−_]/.test(el.textContent));   // _ : the blank of a sign question
     const spoken = convertToSpokenText(spans.map(el => el.textContent).join(' '));
     const small = document.createElement('button');
     small.className = 'speak-btn';
