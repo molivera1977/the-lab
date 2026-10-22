@@ -818,7 +818,9 @@ function lessonWait(name, form) {
   if (ANY_ORDER || SHARE_MODE) return '';
   const st = strandOf(form);
   if (!st) return 'Not open yet';
-  if (st.after && !strandPassed(name, st.after)) {
+  // the strand before it locks it only when that strand is on this student's plan (Marcos 10/21: a plan of just
+  // Place Value and Rounding starts at Place Value; before this, it stayed locked for good)
+  if (st.after && (planFor(name) || []).includes(st.after) && !strandPassed(name, st.after)) {
     const first = STRANDS.find(x => x.id === st.after);
     return `Pass ${first ? first.name : 'the strand before'} first`;
   }
