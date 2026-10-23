@@ -332,7 +332,11 @@ function readingItem(app, q, total) {
   document.getElementById('progress-fill').style.width = `${(app.currentIndex / total) * 100}%`;
   app._renderStreak();
   const qt = document.getElementById('question-text');
-  qt.innerHTML = q.type === 'ebsr' ? 'This question has two parts. Answer Part A and Part B.' : escR(q.q);
+  // RC6: a box of text to read above the question (a summary, like the test). It sits INSIDE the question text, so the
+  // Listen gate reads it with the question and the choices stay locked until both are heard.
+  const excerpt = Array.isArray(q.excerpt) && q.excerpt.length
+    ? `<div class="rc-excerpt"><div class="rc-excerpt-label">${escR(q.excerptLabel || 'Read this')}</div>${q.excerpt.map(l => `<p>${escR(l)}</p>`).join('')}</div>` : '';
+  qt.innerHTML = excerpt + (q.type === 'ebsr' ? 'This question has two parts. Answer Part A and Part B.' : escR(q.q));
   const wrap = document.getElementById('answers');
   if (q.type === 'ebsr') readingEbsr(app, q, wrap);
   else if (q.type === 'hot') readingHot(app, q, wrap);
@@ -513,7 +517,10 @@ function readingListen(app, q) {
   const hosts = [document.getElementById('question-text'), ...document.querySelectorAll('#answers .ebsr-q')];
   hosts.forEach(h => { if (!h.querySelector('.wrd')) h.innerHTML = wrapWords(h.innerHTML); });
   const spans = hosts.flatMap(h => Array.from(h.querySelectorAll('.wrd'))).filter(el => /[A-Za-z0-9]/.test(el.textContent) && !el.closest('[data-noread]'));
-  const text = spans.map(s => s.textContent).join(' ');
+  // RC6: the summary box's label has no end mark on screen, so the voice adds one (or the label runs into the summary)
+  const labelWords = document.querySelectorAll('#question-text .rc-excerpt-label .wrd');
+  const labelEnd = labelWords[labelWords.length - 1];
+  const text = spans.map(s => s === labelEnd && !/[.!?]["”’]?$/.test(s.textContent) ? s.textContent + '.' : s.textContent).join(' ');
   const row = document.createElement('div');
   row.className = 'listen-row q-listen-row';
   row.innerHTML = `<button type="button" class="listen-btn" id="q-listen-btn">🔊 Listen to the question</button>` +
@@ -638,9 +645,10 @@ function readingConfirm(app, q) {
   } else if (q.type === 'hot' || q.type === 'ms') {
     const many = q.pick > 1;
     html = correct ? `✅ <strong>Correct!</strong> ${escR(q.explanation)}`
-      : `${many && partsRight ? `🟡 <strong>${partsRight} of ${q.pick} right.</strong> This question needs both right for the point.` : '❌ <strong>Not quite.</strong>'}` +
+      : `${many && partsRight ? `🟡 <strong>${partsRight} of ${q.pick} right.</strong> This question needs ${q.pick === 2 ? 'both' : `all ${q.pick}`} right for the point.` : '❌ <strong>Not quite.</strong>'}` +
         wrongs.map(w => `<div class="rc-fb-part">You picked ${quote(w.pick)}${/[.!?]$/.test(w.pick) ? '' : '.'} <span class="slip-note">${escR(note(w))}</span></div>`).join('') +
-        `<div class="rc-fb-part">The correct ${many ? 'sentences are' : 'sentence is'}: ${q.answers.map(a => `<strong>${quote(a)}</strong>`).join(' and ')}</div>` +
+        // a click item's answers are sentences of the passage; a Choose item's answers are ideas or meanings
+        `<div class="rc-fb-part">The correct ${q.type === 'ms' ? (many ? 'answers are' : 'answer is') : (many ? 'sentences are' : 'sentence is')}: ${q.answers.map(a => `<strong>${quote(a)}</strong>`).join(q.answers.length > 2 ? ', ' : ' and ')}</div>` +
         `<div class="rc-fb-part">${escR(q.explanation)}</div>`;
   } else {
     const w = wrongs[0];
@@ -721,7 +729,7 @@ function readingExtras(app, form, bank) {
 const PRACTICE_KEY = 'lab_rpract_v1';   // + ':' + name → [{ game, id, pick }]
 const PRACTICE_RE = /^P ([a-z0-9-]+):([A-Z]\d{2}(?:\.[AB])?) \((.*)\)$/;
 // which practice questions each lesson works on (the Read Literary slots, data/skills.js there)
-const PRACTICE_SLOTS = { RC1: ['08'], RC2: ['04', '09'], RC3: ['06', '15'] };
+const PRACTICE_SLOTS = { RC1: ['08'], RC2: ['04', '09'], RC3: ['06', '15'], RC5: ['10', '14'], RC6: ['05', '07', '13'] };
 // Level 2 works on the same skills as Level 1 (RD4 Choose Two has none: the practice site's choose-two items are about word meaning)
 Object.assign(PRACTICE_SLOTS, { RD1: PRACTICE_SLOTS.RC1, RD2: PRACTICE_SLOTS.RC2, RD3: PRACTICE_SLOTS.RC3 });
 const PRACTICE_SITES = { rliab: { dir: '../sbac-read-literary-iab-review/data/', file: f => `form_${f}.js`, global: f => 'FORM_' + f.toUpperCase(), name: 'the SBAC reading practice' } };
@@ -772,6 +780,8 @@ function practiceExample(form, name) {
     const right = Array.isArray(data.answers) ? data.answers : [data.answer];
     if (!right[0]) continue;
     const lines = [`This one is yours. You missed this question on ${s.name}.`, `The story was "${passage.title}".`];
+    // a question that showed text to read first (a summary, or paragraphs to reread): show that text too
+    if (Array.isArray(item.excerpt) && item.excerpt.length) lines.push(`${String(item.excerptLabel || 'The text to read').replace(/^\W+\s*/, '')}: ${item.excerpt.join(' ')}`);
     const para = /paragraph (\d+)/i.exec(data.q || item.q || '');
     if (para && passage.paragraphs[para[1] - 1]) lines.push(`Paragraph ${para[1]} says: ${passage.paragraphs[para[1] - 1]}`);
     if (item.type === 'ebsr' && part === 'B') lines.push(`Part A asked: ${String(item.partA.q).replace(/^Part A — /, '')} The answer is: ${item.partA.answer}`);
@@ -789,7 +799,8 @@ const KIND_KID = {
   notproof: 'picking a sentence that is true but does not prove the idea', noclue: 'picking an answer the passage gives no clue for',
   toofar: 'picking an answer that goes too far', opposite: 'picking the opposite of what the passage shows',
   onedetail: 'picking one small detail instead of the main idea', wrongwho: 'picking something about the wrong person',
-  wrongtime: 'picking a sentence from the wrong part of the passage', literal: 'taking a phrase word for word'
+  wrongtime: 'picking a sentence from the wrong part of the passage', literal: 'taking a phrase word for word',
+  insummary: 'picking an event the summary already tells'
 };
 function kindTip(seen) {
   const top = Object.entries(seen || {}).filter(([k, n]) => n >= 2 && KIND_KID[k]).sort((a, b) => b[1] - a[1])[0];

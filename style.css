@@ -993,6 +993,10 @@ button.answer-btn.multi-choice.selected .ms-box::after,
 button.answer-btn.multi-choice.correct .ms-box::after { content: "✓"; position: absolute; left: 2px; top: -6px; font-size: 18px; font-weight: bold; color: #fff; }
 button.answer-btn.multi-choice.correct .ms-box { border-color: #28a745; background: #28a745; }
 button.answer-btn.multi-choice.incorrect .ms-box { border-color: #dc3545; background: #dc3545; }
+/* RC6: text to read above the question (a summary, like the test) — read aloud with the question */
+.rc-excerpt { background: #fffbea; border: 2px solid #ecd98a; border-radius: 12px; padding: 10px 16px; margin: 0 0 12px; text-align: left; }
+.rc-excerpt-label { font-weight: 700; color: #7a5a00; margin-bottom: 4px; }
+.rc-excerpt p { margin: 4px 0; line-height: 1.5; }
 .multi-count {
   justify-self: end; font-size: 0.85rem; font-weight: bold; color: #475569; background: #f1f5f9;
   border-radius: 999px; padding: 3px 12px; margin-top: 2px;

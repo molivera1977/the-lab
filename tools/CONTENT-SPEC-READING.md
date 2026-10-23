@@ -422,3 +422,101 @@ window.LAB_RC.RD1 = {
   - Is the close sentence truly NOT proof?
   - Does every proof truly SHOW the idea?
   - Are the 4 versions about different things from each other and from every other Lab story?
+
+---
+
+# LEVEL 1, PART 2: `data/rc4.js` – `rc6.js` (RC4 Choose Two · RC5 Words That Mean More · RC6 What Is It Mostly About?)
+
+Marcos 10/22: "let's work on Reading Level 1, Part 2." These are for the same Level 1 readers as RC1–RC3, so use the **Level 1** ranges and voice (stories FK 1.8–2.8; why lines, notes and watch lines FK ≤ 3.0; questions ≤ 4.0).
+
+**Two Level 2 rules also apply here:**
+- **Every version has its OWN teaching story** (`versions[i].teach = { story, flow }`, no top-level `teach`), with the same flow in all 4. A retry teaches the same way on a new story (Marcos 10/21). The checker requires this for RC4 and later.
+- **Premises must be NEW to these children.** Before you settle on any story idea, grep the premise index for its key nouns and situations, and pick only ideas that match NOTHING there. The index is at /private/tmp/claude-501/-Users-marcosolivera-Desktop-website-data/ad50aa91-e934-488a-9987-58ab6a99c2b2/scratchpad/premise_index.txt, about 340 stories from Inference Practice, the SBAC reviews, R.A.D. Practice, the QPS Maze and every Lab story. In Level 2, 24 stories had to be thrown away because they repeated another site's premise.
+
+| Story | FK | Words |
+|---|---|---|
+| teaching story (one per version) | 1.8 – 2.8 | 90 – 170 |
+| Show what you know | 1.8 – 2.8 | 70 – 140 |
+| Your turn: RC4 | 1.8 – 2.8 | 100 – 180 |
+| Your turn: RC5, RC6 | 1.8 – 2.8 | 130 – 210 |
+
+## RC4: Choose Two (ideas, not word meanings)
+The RD4 plan in the Level 2 section, at Level 1 reading:
+- ms pick 2 of exactly 5 choices, with the 2 right ones first.
+- Every wrong choice has a kind and its own note; use `toofar` or `onedetail` for at least one.
+- **teach.flow:** W1 "Choose TWO" · W2 worked example · S1 mc · S2 mc · S3 ms · W3 "The steps". The steps carry no skill.
+- **pre:** P1–P3, all ms: Character inference, Drawing conclusions, Theme.
+- **Your turn:**
+  - Story A: Q01 Character inference · Q02 Drawing conclusions · Q03 Character feelings · Q04 Theme.
+  - Story B: Q05–Q08, the same four.
+  - Every stem ends "Choose TWO answers."
+
+## RC5: Words That Mean More (idioms and similes; skill 'Figurative language')
+- **What it teaches:**
+  - An **idiom** is a saying that means something different from its words ("hit the books" = study hard).
+  - A **simile** compares two things with *like* or *as* ("as quiet as a mouse" = very quiet).
+  - To find the meaning, read the sentence, ask "Does it really mean the words?", and use the clues around it.
+  - The trap is the **word-for-word** choice (kind `literal`).
+- **Every scored item carries:**
+  - `quote`: the EXACT story sentence that holds the phrase. The checker splits the story into sentences, so it must be one of them.
+  - `phrase`: the idiom or simile, exactly as it appears inside the quote.
+  - **The stem:** `Read this sentence from the passage. “<quote>” What does the phrase “<phrase>” suggest about <who>?` An mc stem ends there; an ms stem adds `Choose TWO answers.` or `Choose THREE answers.`
+  - **Wrong choices:** at least one is `literal` (the words taken word for word). The others are `opposite`, `noclue` or `wrongwho`.
+- **Choose THREE (Marcos 10/22):** one per Your-turn story, about a simile, like test item 14.
+  - It has 6 choices: the 3 right ones first, then 3 wrong.
+  - The stem ends "Choose THREE answers."
+- **Each Your-turn story** holds 2 idioms and 2 similes, each asked about once. Use common idioms a 4th grader can learn. Do not use "cold feet" or "big break" (the practice test and the IAB already use them).
+- **teach.flow:**
+  - W1 "Words that mean more": idiom and simile, each with an everyday example.
+  - W2 a worked example on one idiom of the teaching story: the sentence, the trap (the literal reading), and the clues that give the meaning.
+  - S1 mc "Which phrase in this sentence is an idiom?"
+  - S2 mc what that idiom means, with `quote` and `phrase`.
+  - S3 ms pick 2: what a simile in the teaching story suggests, with `quote` and `phrase`.
+  - W3 "The steps": 1. Find the phrase. 2. Ask if it really means the words. 3. Use the clues around it. 4. Pick what it suggests.
+- **pre:** P1 mc idiom · P2 ms pick 2 idiom · P3 mc simile (each with `quote` and `phrase`).
+- **Your turn (8 points):**
+  - Story A: Q01 mc idiom · Q02 ms pick 2 idiom · Q03 mc simile · Q04 ms pick 3 simile.
+  - Story B: Q05–Q08, the same.
+
+## RC6: What Is It Mostly About? (skills 'Main idea' and 'Summary')
+- **What it teaches:**
+  - The **main idea** is what a whole paragraph is mostly about; a **detail** is one small part of it (kind `onedetail`).
+  - A **summary** tells the most important events, in order, in a few sentences, and leaves out small details.
+  - A summary can also be **missing** a key event.
+- **The summary box:**
+  - An item may carry `excerpt` (a list of lines; Level 1 FK ≤ 3) and `excerptLabel` (for example `📝 A summary of “<title>”`).
+  - The Lab shows the box above the question and reads it aloud with the question.
+  - Use it for the missing-event question.
+- **Items:**
+  - **Main idea:** mc with `para: N`. "Read paragraph N. What is paragraph N mostly about?" The wrong choices are `onedetail` (most), `wrongtime` (another paragraph) and `toofar`.
+  - **The missing key event:** mc with `excerpt`. "Read this summary of the passage. Which KEY event is MISSING from the summary?"
+    - The summary is 3–4 sentences and leaves out ONE key event.
+    - Right: that key event.
+    - Wrong:
+      - an event the summary already tells (kind `insummary`; the checker requires one)
+      - a small detail (`onedetail`)
+      - something that did not happen (`noclue`)
+  - **The best summary:** mc. "Which sentence BEST summarizes the passage?"
+    - The right choice tells the key events in order.
+    - Wrong choices:
+      - one that tells only one part (`onedetail`)
+      - one with a wrong event (`noclue`)
+      - one with the events out of order or with an unimportant detail (`toofar` or `wrongtime`)
+- **teach.flow:**
+  - W1 "Mostly about": main idea, detail and summary, with examples.
+  - W2 a worked main idea of one paragraph of the teaching story (`lit`: the paragraph's key sentence and one detail).
+  - S1 mc "Which sentence is just one small detail?"
+  - S2 mc main idea of paragraph N (with `para`).
+  - S3 mc best summary of the teaching story.
+  - W3 "The steps": for a paragraph, ask what the whole paragraph is about; for a summary, check that the key events are there, in order.
+- **pre:** P1 main idea (`para`) · P2 missing key event (`excerpt`) · P3 best summary.
+- **Your turn (8 points):**
+  - Story A: Q01 main idea of paragraph N · Q02 main idea of paragraph M · Q03 missing key event · Q04 best summary.
+  - Story B: Q05–Q08, the same.
+- **Story shape:** an RC6 story needs paragraphs with clear, different main ideas, and a plot with at least 4 key events.
+
+## Answer length and giveaways (added 10/22 after the Part 2 reviews)
+- **Not always the long one, not always the short one.** In each version, the right answer may be strictly the LONGEST choice in at most half the questions and strictly the SHORTEST in at most a third. The checker counts both. (RC6 v3–v4 first had the right answer as the shortest in 6 of 14, after the writer was told "never the longest".)
+- **A written answer can be given away too.** An earlier question's why or note must not say all of a later 4–6 word answer, or 7 words in a row of a longer one — unless a wrong choice of that later question says the same words (a best summary and its wrong-order twin share events).
+- **"Too far" choices:** do not build them all on best / world / never / always / any. Give each story at least one plain overreach ("Hazel wants to be a builder when she grows up."), or a child rules them out by keyword without reading.
+- **A summary box's label** needs no end mark; the Lab's voice adds a pause after it.

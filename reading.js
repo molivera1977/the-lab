@@ -24,7 +24,8 @@ const KINDS = {
   onedetail: 'This is just one detail. It is not the main idea.',
   wrongwho:  'This is about someone else in the passage.',
   wrongtime: 'This is about a different part of the passage.',
-  literal:   'This takes the words word for word. The phrase means something else.'
+  literal:   'This takes the words word for word. The phrase means something else.',
+  insummary: 'This event is already in the summary. Look for the key event the summary leaves out.'
 };
 /* The same kinds as a few words, for the teacher's dashboard and the saved miss */
 const KIND_LABEL = {
@@ -36,6 +37,7 @@ const KIND_LABEL = {
   wrongwho:  'the wrong person',
   wrongtime: 'the wrong part of the passage',
   literal:   'word for word',
+  insummary: 'already in the summary',
   note:      'wrong choice'
 };
 /* What the next lesson says first to a student who keeps making one kind of mistake */
@@ -47,7 +49,8 @@ const KIND_WATCH = {
   onedetail: 'Before you start: you have picked one small detail instead of the main idea. Today, ask what the whole part is about.',
   wrongwho:  'Before you start: you have picked answers about the wrong person. Today, check who the question asks about.',
   wrongtime: 'Before you start: you have picked sentences from the wrong part of the passage. Today, find the part the question is about first.',
-  literal:   'Before you start: you have taken some phrases word for word. Today, ask what the phrase really means.'
+  literal:   'Before you start: you have taken some phrases word for word. Today, ask what the phrase really means.',
+  insummary: 'Before you start: you have picked events the summary already tells. Today, check the summary first, then find what it leaves out.'
 };
 const PART_B_Q = 'Part B — Which sentence from the passage BEST supports the answer in Part A?';
 
@@ -106,6 +109,8 @@ function hotArea(story, it) {
 function item(form, it, story, sKey, extra) {
   const base = { id: `${form}-${it.id}`, story: sKey, skill: it.skill, ...extra };
   if (it.para != null) base.para = it.para;
+  // RC6: text shown above the question (a summary to read); RC5: the sentence and the phrase the question is about
+  ['excerpt', 'excerptLabel', 'quote', 'phrase'].forEach(k => { if (it[k] != null) base[k] = Array.isArray(it[k]) ? it[k].slice() : it[k]; });
   if (it.type === 'ebsr') {
     const a = mcPart(form, it.a), b = mcPart(form, { ...it.b, q: PART_B_Q });
     return { ...base, type: 'ebsr', q: it.a.q, partA: a, partB: b };

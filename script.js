@@ -65,7 +65,7 @@ const STRANDS = [
   { id: 'bp', icon: '🚀', name: 'Place Value: Big Numbers', lessons: ['BP1', 'BP2', 'BP3', 'BP4', 'BP5'], after: 'pv' },
   { id: 'br', icon: '🗺️', name: 'Rounding: Big Numbers', lessons: ['BR1', 'BR2', 'BR3', 'BR4', 'BR5'], after: 'ro' },
   // Reading for Meaning (Marcos 10/20: "build a comprehension strand"): stands alone, no math gate
-  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3'] },
+  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6'] },
   // Level 2 (Marcos 10/22: "growth opportunities to kids at all levels not just my low"): the same test formats on grade
   // 4–5 stories. It waits for Level 1 only when Level 1 is on the student's plan too (lessonWait). The id is letters only:
   // the plan row is read with /plan=([a-z,]+)/, so "rc2" would be read as "rc".
@@ -114,10 +114,14 @@ const LESSONS = {
   RC1: { title: 'Find the Proof',                   icon: '🔍', reading: true, hints: false },
   RC2: { title: 'Part A and Part B',                icon: '🅰️', reading: true, hints: false },
   RC3: { title: 'Click the Sentences',              icon: '👆', reading: true, hints: false },
+  // Part 2 (Marcos 10/22: "let's work on Reading Level 1, Part 2"): choose two, idioms and similes, main idea and summary
+  RC4: { title: 'Choose Two',                       icon: '✌️', reading: true, hints: false },
+  RC5: { title: 'Words That Mean More',             icon: '🪄', reading: true, hints: false },
+  RC6: { title: 'What Is It Mostly About?',         icon: '🧭', reading: true, hints: false },
   RD1: { title: 'Find the Proof: Level 2',          icon: '🔍', reading: true, hints: false },
   RD2: { title: 'Part A and Part B: Level 2',       icon: '🅰️', reading: true, hints: false },
   RD3: { title: 'Click the Sentences: Level 2',     icon: '👆', reading: true, hints: false },
-  RD4: { title: 'Choose Two',                       icon: '✌️', reading: true, hints: false }
+  RD4: { title: 'Choose Two: Level 2',              icon: '✌️', reading: true, hints: false }
 };
 /* WHAT EACH LESSON HELPS WITH, in the student's words (Marcos 10/20: "say the titles of each lesson so the kids know
    what they are working on" · "I want them to know what they need help in"). A verb phrase: the plan says "You will
@@ -144,8 +148,10 @@ const LESSON_GOALS = {
   BR5: 'show what you know about rounding big numbers',
   RC1: 'find the ONE sentence that proves an idea', RC2: 'answer Part A, then prove your answer in Part B',
   RC3: 'click the sentences that show an idea',
+  RC4: 'pick the TWO answers that are both right', RC5: 'figure out what an idiom or a simile really means',
+  RC6: 'tell what a paragraph or a story is mostly about',
   RD1: 'find the sentence that BEST proves an idea in a longer story', RD2: 'answer Part A, then prove it in Part B, in a longer story',
-  RD3: 'click the sentences that BEST show an idea in a longer story', RD4: 'pick the TWO answers that are both right'
+  RD3: 'click the sentences that BEST show an idea in a longer story', RD4: 'pick the TWO answers that are both right, in a longer story'
 };
 Object.entries(LESSON_GOALS).forEach(([id, g]) => { if (LESSONS[id]) LESSONS[id].goal = g; });
 const goalSentence = id => { const g = (LESSONS[id] || {}).goal || ''; return g ? g[0].toUpperCase() + g.slice(1) + '.' : ''; };
@@ -153,7 +159,9 @@ const goalSentence = id => { const g = (LESSONS[id] || {}).goal || ''; return g 
 const KID_SKILL = {
   'Evidence selection': 'finding the sentence that proves an idea', 'Supporting detail': 'finding the sentence that proves your answer',
   'Character inference': 'figuring out what a character is like', 'Drawing conclusions': 'putting clues together',
-  'Character feelings': 'figuring out how a character feels', 'Theme': 'figuring out the lesson of a story'
+  'Character feelings': 'figuring out how a character feels', 'Theme': 'figuring out the lesson of a story',
+  'Figurative language': 'figuring out what an idiom or a simile means', 'Main idea': 'telling what a paragraph is mostly about',
+  'Summary': 'telling what a story is mostly about'
 };
 const kidSkill = skill => { const base = String(skill || '').split(' · ')[0].replace(/ \(check\)$/, '').trim(); return KID_SKILL[base] || base; };
 // "RC2-Q01.B" → "Question 1, Part B" (a student never sees a code)
