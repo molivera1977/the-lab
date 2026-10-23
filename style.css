@@ -617,6 +617,15 @@ button.answer-btn.incorrect { background: #f8d7da; border-color: #dc3545; color:
 /* ── UTILITY ───────────────────────────────────────── */
 .hidden { display: none !important; }
 
+/* THE COVER (Marcos 10/22: "the title needs to be bigger. It gives little brother vibes compared to the green
+   button"): only while the welcome panel shows, the title and its line are big; every other screen keeps 1.75rem. */
+.container:has(#start-screen:not(.hidden) #welcome-panel:not(.hidden)) > h1 { font-size: 3.4rem; letter-spacing: 1.5px; margin-bottom: 18px; }
+.container:has(#start-screen:not(.hidden) #welcome-panel:not(.hidden)) > .welcome-sub { font-size: 1.3rem; margin-top: -6px; }
+@media(max-width: 600px) {
+  .container:has(#start-screen:not(.hidden) #welcome-panel:not(.hidden)) > h1 { font-size: 2.5rem; }
+  .container:has(#start-screen:not(.hidden) #welcome-panel:not(.hidden)) > .welcome-sub { font-size: 1.05rem; }
+}
+
 @media(max-width: 600px) {
   .container { margin: 10px; padding: 1.4rem; }
   h1 { font-size: 1.25rem; }
