@@ -25,11 +25,10 @@
         Watch and listen. Try it step by step. Then show what you can do!
       </p>
       <button class="lgs-btn" onclick="app.showReadAloudIntro()">🚀 Let's Get Started!</button>
-      <!-- the two small teacher links, centered under the button like the title (Mr. Olivera 10/22: "more symmetry needed") -->
-      <div style="text-align:center;margin-top:16px;">
+      <!-- the two small teacher links, in opposite bottom corners (Mr. Olivera 10/22: "put both in opposite corners on the bottom") -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
         <!-- for teachers and visitors (Mr. Olivera 10/22): how the Lab works, lesson by lesson — opens in a new tab -->
         <a href="https://mroteacher.com/behind-the-lab/" target="_blank" rel="noopener" id="behind-the-lab-link" style="font-size:0.72rem;color:#bbb;text-decoration:none;">📘 Behind the LAB</a>
-        <span aria-hidden="true" style="font-size:0.72rem;color:#ccc;margin:0 12px;">·</span>
         <span onclick="app.promptTeacherReview()" style="font-size:0.72rem;color:#bbb;cursor:pointer;user-select:none;">Teacher Access</span>
       </div>
     </div>
