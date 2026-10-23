@@ -1193,7 +1193,7 @@ const app = {
     document.getElementById(id).classList.remove('hidden');
     if (id !== 'quiz-screen') document.body.classList.remove('story-active');   // 🔎 the passage layout ends with the lesson
     window.scrollTo(0, 0);   // every new screen starts at the top
-    window.speechSynthesis.cancel();
+    hushReadAloud();
   },
 
   /* ── INIT ── */
@@ -1208,7 +1208,7 @@ const app = {
     if (!SHARE_MODE && (!ANY_OPEN)) return;
     document.getElementById('welcome-panel').classList.add('hidden');
     this.show('readaloud-screen');
-    setTimeout(speakReadAloudIntro, 150);   // announces itself (show() just cancelled any speech)
+    introTimer = setTimeout(speakReadAloudIntro, 150);   // announces itself (show() just cancelled any speech; leaving first cancels this)
     const btn   = document.getElementById('readaloud-btn');
     const fill  = document.getElementById('readaloud-fill');
     const count = document.getElementById('readaloud-count');
@@ -2605,6 +2605,18 @@ const app = {
     pinModalCallback = null;
   }
 };
+
+/* ── LEAVING ENDS THE READ-ALOUD ──────────────────────
+   Marcos 10/23 (the QPS hub): "if I leave I still hear the read aloud". A new screen, another tab
+   or leaving the site ends everything being read — the whole passage, the Read Aloud screen, a
+   Listen — for good, not just the paragraph being said (the passage used to go on to its next
+   paragraph, and then count as heard). */
+function hushReadAloud() {
+  introToken++; clearTimeout(introTimer);
+  stopActiveSpeech();
+}
+window.addEventListener('pagehide', hushReadAloud);
+document.addEventListener('visibilitychange', () => { if (document.hidden) hushReadAloud(); });
 
 /* ── VISIBILITY / UNLOAD ─────────────────────────────── */
 document.addEventListener('visibilitychange', () => {
