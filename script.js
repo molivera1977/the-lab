@@ -364,7 +364,7 @@ function sendProgress(name) {
       action: 'submit', game: 'lab-progress', sessionId: 'labp-' + name, name,
       form: 'passed=' + done.join(',') + '|mastered=' + [...readMastered(name)].join(',') +
         (typeof kindsText === 'function' ? '|kinds=' + kindsText(readKinds(name)) : '') +
-        '|tries=' + triesText(getFormAttempts(name)),
+        '|tries=' + triesText(getFormAttempts(name)) + '|on=' + onText(passDays(name)) + lastText(name),
       score: done.length, total: FORMS.length, percent: Math.round(done.length / FORMS.length * 100),
       done: false, elapsed: 0, tabSwitches: 0,
       wrongQuestions: factListText(weak),
@@ -414,17 +414,30 @@ async function loadHistory(name) {
     try { localStorage.setItem(MASTERED_KEY + ':' + name, JSON.stringify([...mastered])); } catch (e) {}
     // lessons passed on another device count here too
     const got = (/passed=([^|]*)/.exec(p.form) || [])[1] || '';
+    const on = Object.fromEntries(((/on=([^|]*)/.exec(p.form) || [])[1] || '').split(',').map(x => x.split(':')).filter(x => LESSONS[x[0]] && fromDayNum(x[1])));
     const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
     got.split(',').filter(id => LESSONS[id] && !passed(name, id)).forEach(id => {
-      scores.push({ name, form: id, attempt: 0, score: 1, total: 1, pct: 100, elapsed: 0, date: '', time: '', done: true, restored: true });
+      scores.push({ name, form: id, attempt: 0, score: 1, total: 1, pct: 100, elapsed: 0, date: '', time: '', done: true, restored: true,
+                    ...(on[id] ? { at: fromDayNum(on[id]).toISOString() } : {}) });
     });
+    // a pass restored earlier without its day gets it now
+    scores.forEach(s => { if (s.name === name && s.restored && !s.at && on[s.form]) s.at = fromDayNum(on[s.form]).toISOString(); });
     localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+    // the last lesson finished on any Chromebook (for whose turn it is)
+    const last = /last=([A-Z]{2}\d):(\d+)/.exec(p.form);
+    if (last && LESSONS[last[1]]) try { localStorage.setItem(LAST_KEY + ':' + name, JSON.stringify({ id: last[1], t: Number(last[2]) })); } catch (e) {}
   }
   const weak = readWeak(name);
   if (s) mergeWeak(weak, parseFactList(s.wrongQuestions, 'facts'), mastered);
   if (s && typeof notePractice === 'function') notePractice(name, s.wrongQuestions);   // 🔎 their reading-practice misses
   if (p) mergeWeak(weak, parseFactList(p.wrongQuestions, 'lab'), mastered);
   writeWeak(name, weak);
+  // 📅 this Chromebook knows the day of a pass the sheet's row has no day for (a pass made here before 10/24): send the row,
+  // so every Chromebook counts it in "This week" (Marcos 10/24: "do both" — the sheet was filled in once, and this keeps it so)
+  const rowDays = new Set(((/on=([^|]*)/.exec((p && p.form) || '') || [])[1] || '').split(',').map(x => x.split(':')[0]).filter(Boolean));
+  const rowLast = Number((/last=[A-Z]{2}\d:(\d+)/.exec((p && p.form) || '') || [])[1]) || 0;
+  const mineLast = lastTry(name, FORMS);
+  if (Object.entries(passDays(name)).some(([id, d]) => d && !rowDays.has(id)) || (mineLast && mineLast.t > rowLast)) sendProgress(name);
   return true;
 }
 /* After an answer to one of the student's facts (or any fact a lesson asks): update the list.
@@ -820,6 +833,34 @@ function mergeTries(name, text) {
   String(text || '').split(',').forEach(p => { const [id, n] = p.split(':'); if (LESSONS[id] && Number(n) > (t[id] || 0)) t[id] = Number(n); });
   writeTries(name, t);
 }
+/* 📅 WHEN EACH LESSON WAS FIRST PASSED (Marcos 10/24: "maybe change it to a running tally for the year and the week").
+   A try on this Chromebook carries its own time (at, or the older date field); a pass from another Chromebook brings
+   its day in the lab-progress row ("|on=AS1:20261023"). A pass with no known day still counts for the year. */
+const dayNum = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const fromDayNum = n => { const v = Number(n); return v ? new Date(Math.floor(v / 10000), Math.floor(v / 100) % 100 - 1, v % 100, 12) : null; };
+function tryDay(s) {
+  if (s.at) { const d = new Date(s.at); if (!isNaN(d)) return d; }
+  if (s.date) { const d = new Date(s.date); if (!isNaN(d)) return d; }
+  return null;
+}
+function passDays(name) {
+  const out = {};
+  JSON.parse(localStorage.getItem(SCORES_KEY) || '[]')
+    .filter(s => s.name === name && s.done && s.total > 0 && LESSONS[s.form] && s.score / s.total * 100 >= passPct(s.form))
+    .forEach(s => { const d = tryDay(s); if (!(s.form in out) || (d && (!out[s.form] || d < out[s.form]))) out[s.form] = d; });
+  return out;   // lesson → the day it was first passed (null = passed, day not known)
+}
+const onText = days => Object.entries(days).filter(([, d]) => d).map(([id, d]) => `${id}:${dayNum(d)}`).join(',');
+// this week = Monday to Sunday; this year = the school year (from August 1)
+const weekStart = now => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; };
+const schoolYearStart = now => new Date(now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1, 7, 1);
+function passTally(name) {
+  const now = new Date(), ws = weekStart(now), ys = schoolYearStart(now);
+  let week = 0, year = 0;
+  Object.values(passDays(name)).forEach(d => { if (!d || d >= ys) year++; if (d && d >= ws) week++; });
+  return { week, year };
+}
+const lastText = name => { const l = lastTry(name, FORMS); return l && l.t ? `|last=${l.id}:${l.t}` : ''; };
 const triesText = counts => Object.entries(counts).filter(([, n]) => n > 0).map(([id, n]) => `${id}:${n}`).join(',');
 function getFormAttempts(name) {
   const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
@@ -877,10 +918,27 @@ function lessonWait(name, form) {
    missed is still unpassed, so it comes back on its turn. The plan's ▶ Continue button and the end screen's Next both
    follow this. */
 const isReadingStrand = st => !!st && st.lessons.some(id => LESSONS[id] && LESSONS[id].reading);   // Level 1 and Level 2
-function lastLessonDone(name, ids) {
+/* The last lesson finished (passed or not) decides whose turn is next. Marcos 10/24: "fix the chromebook switching" — a
+   Chromebook only knew its OWN tries, so on another Chromebook the turns started over. Now the lab-progress row carries
+   the last finished lesson and when ("|last=RC1:1729706640000"); the newer of this Chromebook's and the row's wins. */
+const LAST_KEY = 'lab_last_v1';   // + ':' + name → { id, t } as the sheet's row last said
+function tryTime(s) {
+  if (s.at) { const t = Date.parse(s.at); if (!isNaN(t)) return t; }
+  if (s.date) { const t = Date.parse(`${s.date} ${s.time || ''}`.trim()); if (!isNaN(t)) return t; }
+  return 0;
+}
+function lastTry(name, ids) {
   const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
   const mine = scores.filter(s => s.name === name && s.done && !s.restored && ids.includes(s.form));
-  return mine.length ? mine[mine.length - 1].form : null;
+  const here = mine.length ? { id: mine[mine.length - 1].form, t: tryTime(mine[mine.length - 1]) } : null;
+  let row = null;
+  try { row = JSON.parse(localStorage.getItem(LAST_KEY + ':' + name) || 'null'); } catch (e) {}
+  if (!row || !ids.includes(row.id) || !row.t) return here;
+  return !here || row.t > here.t ? row : here;
+}
+function lastLessonDone(name, ids) {
+  const last = lastTry(name, ids);
+  return last ? last.id : null;
 }
 function nextStep(name, strands) {
   const open = st => st.lessons.find(id => !passed(name, id) && !lessonWait(name, id)) || null;
@@ -907,6 +965,82 @@ function setFormButton(form, label, sub, waiting, el) {
     : waiting
       ? `🔒 ${label.replace(/^\S+\s/, '')}<span class="form-btn-sub">${waiting}</span>`
       : `${label}<span class="form-btn-sub">${sub}</span>`;
+}
+
+/* ── MY PATH (Marcos 10/23: "I want them to see where they are heading and what they are working on … what they have
+   accomplished, what they are working on now, where they are headed. It should be fun and informative … Today many asked
+   what was next and how long each section was. They should not be flying blind." — and: "keep in mind … going through all
+   1s then all 2s, and all 3s"). The page shows the lessons in the order the Lab gives them (math 1, reading 1, math 2 …):
+   what they passed, the one they are on, the next few, how many are left and the topics still to come — no groups
+   (10/24: "talking about sections seems totally confusing for them").
+   routeFrom = nextStep's rules (lessonWait + take turns) run forward on a copy of what is passed. ── */
+function routeFrom(name, strands, done, last) {
+  const plan = strands.map(st => st.id), have = new Set(done), out = [];
+  const strandDone = sid => { const st = STRANDS.find(x => x.id === sid); return !!st && st.lessons.every(id => have.has(id)); };
+  const waits = id => {
+    const st = strandOf(id);
+    if (st.after && plan.includes(st.after) && !strandDone(st.after)) return true;
+    const i = st.lessons.indexOf(id);
+    return i > 0 && !have.has(st.lessons[i - 1]);
+  };
+  const open = st => st.lessons.find(id => !have.has(id) && !waits(id)) || null;
+  const firstOpen = list => list.map(open).find(Boolean) || null;
+  const math = strands.filter(st => !isReadingStrand(st)), read = strands.filter(isReadingStrand);
+  for (let guard = 0; guard < 300; guard++) {
+    const nm = firstOpen(math), nr = firstOpen(read);
+    const n = !nm || !nr ? (nm || nr)
+      : !last ? (isReadingStrand(strands[0]) ? nr : nm)
+      : LESSONS[last] && LESSONS[last].reading ? nm : nr;          // take turns
+    if (!n) break;
+    out.push(n); have.add(n); last = n;
+  }
+  return out;
+}
+const lessonTag = id => { const rd = isReadingStrand(strandOf(id));
+  return `<span class="tl-subj ${rd ? 'rd' : 'ma'}">${rd ? 'Reading' : 'Math'}</span><span class="tl-sep">: </span><span class="tl-title">${LESSONS[id].title}</span>`; };
+const lessonSize = id => { const n = scoredCount(window['LAB_' + id]); return `${n} ${LESSONS[id].reading ? 'points' : 'questions'}`; };
+// the greeting: a running tally of lessons passed this week and this year (Marcos 10/24, in place of the 🚀 → 🏁 bar: a
+// plan can grow, so there is no finish line to race to). The 🔊 reads it: "This week: 2 lessons passed. This year: …"
+function pathSummary(name) {
+  const t = passTally(name), n = k => `${k} ${k === 1 ? 'lesson' : 'lessons'} passed`;
+  return `<div class="tally" id="path-tally"><span class="tally-chip week" id="tally-week">This week: <b>${n(t.week)}</b><span class="tl-stop">.</span></span>` +
+    `<span class="tally-chip year" id="tally-year">This year: <b>${n(t.year)}</b><span class="tl-stop">.</span></span></div>`;
+}
+// Marcos 10/24: "talking about sections seems totally confusing for them. Kids wont make sense of it." → no groups at all;
+// "go with 2": ONE short list in the order the Lab gives the lessons — the last few passed (✓), the one they are on (📍),
+// the next few, how many are left, then one line naming the topics still to come. The 🔊 reads words only (the ✓ is
+// drawn by the page, so the voice never says "check mark").
+const PATH_DONE_SHOWN = 3, PATH_NEXT_SHOWN = 3;
+function pathHTML(name, strands, nextUp) {
+  const all = strands.flatMap(st => st.lessons);
+  const done = all.filter(id => passed(name, id));
+  const ahead = routeFrom(name, strands, done, lastLessonDone(name, all));   // ahead[0] = ▶ Start's lesson
+  // passed first (in the Lab's order), then what is still ahead in the order the Lab will give it
+  const seq = [...routeFrom(name, strands, [], null).filter(id => done.includes(id)), ...ahead];
+  all.forEach(id => { if (!seq.includes(id)) seq.push(id); });
+  const at = nextUp ? seq.indexOf(nextUp) : done.length;
+  const from = Math.max(0, Math.min(at, done.length) - PATH_DONE_SHOWN), to = Math.min(seq.length, at + 1 + PATH_NEXT_SHOWN);
+  const speak = '<button class="speak-btn" onclick="speakDir(this)">🔊</button>';
+  const rows = seq.slice(from, to).map((id, k) => {
+    const st = done.includes(id) ? 'done' : id === nextUp ? 'now' : 'later';
+    const tip = `${LESSONS[id].title} — ${st === 'done' ? 'passed' : st === 'now' ? 'you are here' : 'coming up'} · ${lessonSize(id)}`;
+    return `<li class="tl-row ${st}" data-id="${id}"><button class="tl-btn" title="${tip}" onclick="app.attemptStart('${id}')">` +
+      `<span class="tl-dot" data-mark="${st === 'done' ? '✓' : st === 'now' ? '📍' : from + k + 1}" aria-hidden="true"></span>` +
+      lessonTag(id) +
+      `${st === 'now' ? '<span class="tl-stop">.</span><span class="tl-here">You are here</span>' : ''}<span class="tl-stop">.</span></button></li>`;
+  }).join('');
+  const plural = n => `${n} more ${n === 1 ? 'lesson' : 'lessons'}`;
+  const earlier = from > 0 ? `<li class="tl-more done-more" id="path-earlier">${plural(from)} done.</li>` : '';
+  const left = seq.length - to;
+  // Marcos 10/24: "should we say then you are done? What happens when they get more lessons" — a plan can grow, so the
+  // page never promises an end: it counts what is on the plan today
+  const end = `<li class="tl-more finish" id="path-left">${left > 0 ? `Then ${plural(left)} on your plan.` : 'That is your whole plan for now!'}</li>`;
+  // the topics still to come (no lesson of theirs passed or on the list above), in the words of their lesson cards
+  const shown = new Set([...done, ...seq.slice(from, to)].map(id => strandOf(id).id));
+  const later = [...new Set(seq.slice(to).map(id => strandOf(id)))].filter(st => !shown.has(st.id)).map(st => st.name);
+  const laterLine = later.length ? `<p class="path-later" id="path-later"><b>Later:</b> ${later.join(', ')}.</p>` : '';
+  return `<div class="dir-section path-part now" id="part-now"><div class="dir-row">${speak}<h3>🗺️ My Lessons</h3></div>
+    <div class="dir-text"><ol class="timeline">${earlier}${rows}${end}</ol>${laterLine}</div></div>`;
 }
 
 /* MY PLAN — one card per strand, one button per lesson, the next lesson to do marked "Do this next". */
@@ -940,16 +1074,31 @@ function applyFormLocks(name, state) {
   const hi = document.createElement('div');
   hi.className = 'dir-section plan-hi-row';
   hi.innerHTML = `<div class="dir-row"><button class="speak-btn" onclick="speakDir(this)">🔊</button><h3 style="margin:0;">🧪 ${listed ? `${first}'s Plan` : 'Lab Practice'}</h3></div>` +
-    `<p class="dir-text">${nextUp ? `Your next lesson is ${LESSONS[nextUp].title}. You will learn to ${LESSONS[nextUp].goal}. Tap it to start.` : 'You passed every lesson that is open. Great work!'}</p>`;
+    (seesAll(name) ? `<p class="dir-text">${nextUp ? `Your next lesson is ${LESSONS[nextUp].title}. You will learn to ${LESSONS[nextUp].goal}. Tap it to start.` : 'You passed every lesson that is open. Great work!'}</p>`
+      : `<div class="dir-text">${pathSummary(name)}<p class="hi-next">${nextUp ? 'Tap the big blue button to start.' : 'You passed every lesson that is open. Great work!'}</p></div>`);
   box.appendChild(hi);
   // ▶ CONTINUE: the next lesson on the route, one big button at the top (the list below stays for a redo)
   if (nextUp) {
     const go = document.createElement('button');
-    go.className = 'start-btn continue-btn';
+    go.className = 'start-btn continue-btn pulse';   // pulses and glows (Marcos 10/23)
     go.id = 'btn-continue';
-    go.innerHTML = `▶ Continue: ${LESSONS[nextUp].title}<span class="form-btn-sub">${goalSentence(nextUp)}</span>`;
+    // Marcos 10/23: "is continue a clear enough button title? How do they know to hit it?" — the button says what it does
+    // and which lesson (subject + title); the greeting tells them to tap it (a lesson left halfway has its own Resume screen)
+    go.innerHTML = `<span class="go-top">▶ Start my next lesson</span><span class="go-name">${lessonTag(nextUp)}</span>` +
+      `<span class="form-btn-sub">${goalSentence(nextUp)}</span>`;
     go.onclick = () => app.attemptStart(nextUp);
     box.appendChild(go);
+  }
+  // 🗺️ My Path (a student's plan; Mr. O and a share link keep the full list)
+  let listBox = box;
+  if (!seesAll(name)) {
+    box.insertAdjacentHTML('beforeend', pathHTML(name, strands, nextUp));
+    const all = document.createElement('details');
+    all.className = 'all-lessons';
+    all.id = 'all-lessons';
+    all.innerHTML = `<summary>📋 See all my lessons (${strands.reduce((n, st) => n + st.lessons.length, 0)})</summary>`;
+    box.appendChild(all);
+    listBox = all;
   }
   strands.forEach(st => {
     const card = document.createElement('div');
@@ -958,7 +1107,7 @@ function applyFormLocks(name, state) {
     if (st.soon || !st.lessons.length) {
       const why = st.after ? `Opens after ${STRANDS.find(x => x.id === st.after).name}.` : 'Coming soon.';
       card.insertAdjacentHTML('beforeend', `<p class="form-note">🔒 ${why}</p>`);
-      box.appendChild(card);
+      listBox.appendChild(card);
       return;
     }
     const grid = document.createElement('div');
@@ -980,7 +1129,7 @@ function applyFormLocks(name, state) {
       setFormButton(id, `${L.icon} ${L.title}`, goal + sub, lessonWait(name, id), b);
     });
     card.appendChild(grid);
-    box.appendChild(card);
+    listBox.appendChild(card);
   });
   if (typeof qpsCard === 'function') qpsCard(box, name);   // 📖 QPS progress, read-only (qps-feed.js)
 }
@@ -2197,6 +2346,7 @@ const app = {
         elapsed: this.timerSeconds,
         date:    date.toLocaleDateString(),
         time:    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        at:      date.toISOString(),   // 📅 for "This week" / "This year" (10/24)
         done:    true
       });
       localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
