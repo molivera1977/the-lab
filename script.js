@@ -1617,7 +1617,8 @@ const app = {
     // try 2 → version 2 … then round again. "Try" = finished tries, on any Chromebook (TRIES_KEY). Each version teaches
     // the same way with a worked example of its own (Marcos 10/21: "one method, new numbers"). The version rides in the start event.
     const versions = window['LAB_' + form + '_V'];
-    const triesDone = (reviewMode || SHARE_MODE) ? 0 : (getFormAttempts(this.studentName)[form] || 0);
+    // a guest's tries count too, for this visit only (Marcos 10/25 — see the score save at the end of a lesson)
+    const triesDone = reviewMode ? 0 : (getFormAttempts(this.studentName)[form] || 0);
     this.triesAt = triesDone;
     this.version = Array.isArray(versions) && versions.length ? triesDone % versions.length : 0;
     let rawBank = [...(this.version ? versions[this.version] : window['LAB_' + form])];
@@ -2327,14 +2328,17 @@ const app = {
     const pct   = total ? Math.round((score / total) * 100) : 0;
     const date  = new Date();
     const form  = this.currentForm;
-    const wasPassed = !reviewMode && !SHARE_MODE && passed(this.studentName, form);
+    const wasPassed = !reviewMode && passed(this.studentName, form);
 
     const scores   = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
-    const prevDone = (reviewMode || SHARE_MODE) ? 0 : scores.filter(s => s.name === this.studentName && s.form === form && s.done && !s.restored).length;
+    const prevDone = reviewMode ? 0 : scores.filter(s => s.name === this.studentName && s.form === form && s.done && !s.restored).length;
     const attemptNum = prevDone + 1;
     this.currentAttemptNum = attemptNum;
 
-    if (!reviewMode && !SHARE_MODE) {
+    // A GUEST'S VISIT ACTS LIKE A STUDENT'S (Marcos 10/25: "Why does the Lab not act properly when in guest mode" → "Remember
+    // for the visit"): a guest's tries are kept too, so the plan, the ✓ marks and Next move on. share.js keeps them under
+    // share_ keys and wipes them on the next visit; nothing is sent (submitScoreFinal/sendProgress never reach the sheet).
+    if (!reviewMode) {
       scores.push({
         name:    this.studentName,
         form,
@@ -2377,7 +2381,7 @@ const app = {
       : `${pass ? '🎉' : '💪'} ${FORM_NAMES[form]} — ${pass ? 'Passed' : 'Not yet'}`;
 
     document.getElementById('final-score-sub').textContent = SHARE_MODE
-      ? `${FORM_NAMES[form]} · Guest view — this score was not saved`
+      ? `${FORM_NAMES[form]} · Guest view — kept for this visit only, not sent to Mr. O`
       : `${FORM_NAMES[form]}${this.testedOut ? ' · Skipped' : ''}${attemptNum > 1 ? ' · Try ' + attemptNum : ''} · ${this.studentName}`;
     document.getElementById('final-msg').textContent = msg;
     // WHAT TO KEEP PRACTICING (Marcos 10/20: "I want them to know what they need help in"): what this lesson
