@@ -1105,11 +1105,14 @@ function applyFormLocks(name, state) {
   // the next lesson comes from the strands this student is shown (a reading-only plan never points at math),
   // math and reading taking turns (nextStep)
   const nextUp = nextStep(name, strands);
+  // Mr. O gets the full list; a student AND a share-link guest get the student view (Marcos 10/26, on ?share=mro:
+  // "why do i still see this" → "Guests get My Lessons")
+  const fullList = name === 'Mr. O (Teacher)';
   box.innerHTML = '';
   const hi = document.createElement('div');
   hi.className = 'dir-section plan-hi-row';
   hi.innerHTML = `<div class="dir-row"><button class="speak-btn" onclick="speakDir(this)">🔊</button><h3 style="margin:0;">🧪 ${listed ? `${first}'s Plan` : 'Lab Practice'}</h3></div>` +
-    (seesAll(name) ? `<p class="dir-text">${nextUp ? `Your next lesson is ${LESSONS[nextUp].title}. You will learn to ${LESSONS[nextUp].goal}. Tap it to start.` : 'You passed every lesson that is open. Great work!'}</p>`
+    (fullList ? `<p class="dir-text">${nextUp ? `Your next lesson is ${LESSONS[nextUp].title}. You will learn to ${LESSONS[nextUp].goal}. Tap it to start.` : 'You passed every lesson that is open. Great work!'}</p>`
       : `<div class="dir-text">${pathSummary(name)}<p class="hi-next">${nextUp ? 'Tap the big blue button to start.' : 'You passed every lesson that is open. Great work!'}</p></div>`);
   box.appendChild(hi);
   // ▶ CONTINUE: the next lesson on the route, one big button at the top (the list below stays for a redo)
@@ -1124,9 +1127,9 @@ function applyFormLocks(name, state) {
     go.onclick = () => app.attemptStart(nextUp);
     box.appendChild(go);
   }
-  // 🗺️ My Path (a student's plan; Mr. O and a share link keep the full list)
+  // 🗺️ My Path (a student's plan and a guest's; Mr. O keeps the full list)
   let listBox = box;
-  if (!seesAll(name)) {
+  if (!fullList) {
     box.insertAdjacentHTML('beforeend', pathHTML(name, strands, nextUp));
     const all = document.createElement('details');
     all.className = 'all-lessons';
