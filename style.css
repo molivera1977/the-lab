@@ -952,6 +952,12 @@ body.story-active .container { max-width: 1240px; }
 .story-para:last-child { margin-bottom: 0; }
 .story-para.para-focus { background: #fff8d6; box-shadow: 0 0 0 3px #f4c430; }
 .para-speak-btn { font-size: 0.9rem; min-width: 38px; padding: 3px 6px; align-self: flex-start; background: #fff; }
+/* a paragraph heard to its end while the passage is heard first (Marcos 10/26: each 🔊 on the left counts too) */
+.para-speak-btn.heard { position: relative; border-color: #27ae60; background: #eafaf1; }
+.para-speak-btn.heard::after {
+  content: '✓'; position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%;
+  background: #27ae60; color: #fff; font-size: 12px; line-height: 18px; text-align: center; font-weight: bold;
+}
 .para-num {
   flex: 0 0 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff;
   font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; justify-content: center;

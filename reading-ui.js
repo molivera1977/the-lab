@@ -25,8 +25,9 @@ function escR(s) {
 const sameText = (a, b) => String(a).replace(/\s+/g, ' ').trim() === String(b).replace(/\s+/g, ' ').trim();
 const isReadingForm = form => !!(LESSONS[form] && LESSONS[form].reading);
 
-/* Read one block aloud, word by word (a speaker on the left of the block). A second tap stops it. */
-function speakEl(btn, el, rate) {
+/* Read one block aloud, word by word (a speaker on the left of the block). A second tap stops it.
+   onHeard: called when it was read to its end (not stopped, not cut off by another speaker or by leaving). */
+function speakEl(btn, el, rate, onHeard) {
   if (activeSpeakBtn === btn) { stopActiveSpeech(); return; }
   stopActiveSpeech();
   if (!el || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
@@ -37,16 +38,20 @@ function speakEl(btn, el, rate) {
   btn.textContent = '⏹';
   const u = new SpeechSynthesisUtterance(spans.map(s => s.textContent).join(' '));
   u.lang = 'en-US'; u.rate = rate || READ_RATE;
-  let i = 0;
+  let i = 0, began = false;
+  u.onstart = () => { began = true; };
   u.onboundary = e => {
     if (e.name !== 'word') return;
     spans.forEach(s => s.classList.remove('hl'));
-    if (spans[i]) spans[i].classList.add('hl');
+    if (spans[i]) { spans[i].classList.add('hl'); followLitWord(spans[i]); }   // the passage box follows (script.js)
     i++;
   };
-  u.onend = () => {
+  u.onend = e => {
+    // a stop (stopActiveSpeech lets go of the button first) or a voice error is not "to its end"
+    const whole = activeSpeakBtn === btn && began && !(e && e.error);
     spans.forEach(s => s.classList.remove('hl'));
     if (activeSpeakBtn === btn) { btn.textContent = '🔊'; activeSpeakBtn = null; }
+    if (whole && onHeard) onHeard();
   };
   addHighlightFallback(u, spans);
   window.speechSynthesis.speak(u);
@@ -96,6 +101,15 @@ function topKind(name) {
 
 /* ── THE PASSAGE PANEL ── */
 let shownStoryKey = null;
+/* PARAGRAPH BY PARAGRAPH (Marcos 10/26: "what if i hit each speaker button on the left instead of the big button …
+   Why doesn't the go to the questions button show"): every paragraph heard to its end, with its own 🔊 or inside the
+   big Listen, counts the same as the whole passage. Kept for the passage on screen only; each first showing starts over. */
+const parasHeard = {};      // story key → Set of paragraph numbers heard to the end
+let parasWatch = null;      // the passage being heard first: { key, onPara }
+function paraHeard(key, n) {
+  (parasHeard[key] = parasHeard[key] || new Set()).add(n);
+  if (parasWatch && parasWatch.key === key) parasWatch.onPara();
+}
 function storyPanelHTML(story) {
   return `<div class="story-panel-header"><span class="sp-title">📖 <span class="sp-title-text">${escR(story.title)}</span></span></div>
     <div class="story-scroll">${(story.paragraphs || []).map((p, i) =>
@@ -118,7 +132,8 @@ function renderStoryPanel(key) {
     panel.innerHTML = storyPanelHTML(story);
     shownStoryKey = key;
     panel.querySelectorAll('.para-speak-btn').forEach(b => {
-      b.onclick = () => speakEl(b, b.parentElement.querySelector('.para-text'));
+      const n = Number(b.parentElement.dataset.para);
+      b.onclick = () => speakEl(b, b.parentElement.querySelector('.para-text'), undefined, () => paraHeard(key, n));
     });
     const scroll = panel.querySelector('.story-scroll');
     if (scroll) scroll.scrollTop = 0;
@@ -146,7 +161,7 @@ function markStory(lit, para) {
    voices), the words lighting up. Heard = the last paragraph ended. Stopping early does not count; a second
    tap does not restart it; a device with no voice gets a wait long enough to read it, then "I read it".
    Same rules as _listenGate in script.js. */
-function listenChunks(btn, note, chunks, pending, heard, labels) {
+function listenChunks(btn, note, chunks, pending, heard, labels, onChunk) {   // onChunk(para): a paragraph read to its end
   const words = chunks.reduce((n, c) => n + c.text.split(/\s+/).filter(Boolean).length, 0);
   const clearHl = () => chunks.forEach(c => c.spans.forEach(el => el.classList.remove('hl')));
   const idle = () => { btn.classList.remove('playing'); btn.textContent = pending() ? labels.listen : labels.again; };
@@ -191,6 +206,7 @@ function listenChunks(btn, note, chunks, pending, heard, labels) {
         c.spans.forEach(el => el.classList.remove('hl'));
         if (errored) { settle(); noVoice(); return; }
         if (cutOff) { finish(false); return; }         // stopped by something outside the page: not heard
+        if (c.para && onChunk) onChunk(c.para);
         setTimeout(() => say(k + 1), 250);
       };
       // every paragraph must start within LISTEN_START_WAIT, not just the first (a voice can stall mid-passage)
@@ -210,7 +226,7 @@ function listenChunks(btn, note, chunks, pending, heard, labels) {
       u.onboundary = e => {
         if (e.name !== 'word') return;
         c.spans.forEach(el => el.classList.remove('hl'));
-        if (c.spans[hl]) c.spans[hl].classList.add('hl');
+        if (c.spans[hl]) { c.spans[hl].classList.add('hl'); followLitWord(c.spans[hl]); }   // the passage box follows
         hl++;
       };
       u.onend = next;
@@ -291,7 +307,8 @@ function readingGate(app, q, story, total) {
   hosts.forEach(h => { if (!h.querySelector('.wrd')) h.innerHTML = wrapWords(h.innerHTML); });
   const chunks = hosts.map(h => {
     const spans = Array.from(h.querySelectorAll('.wrd')).filter(s => /[A-Za-z0-9]/.test(s.textContent));
-    return { spans, text: spans.map(s => s.textContent).join(' ') };
+    const para = h.closest('.story-para');
+    return { spans, text: spans.map(s => s.textContent).join(' '), para: para ? Number(para.dataset.para) : 0 };
   }).filter(c => c.spans.length);
   const row = document.createElement('div');
   row.className = 'listen-row';
@@ -307,7 +324,7 @@ function readingGate(app, q, story, total) {
     go.className = 'action-btn story-go-btn';
     go.id = 'story-go-btn';
     go.textContent = q.kind === 'watch' ? '➡️ Go on' : '➡️ Go to the questions';
-    go.onclick = () => { stopActiveSpeech(); app.renderQuestion(); };
+    go.onclick = () => { stopActiveSpeech(); markParas(new Set()); parasWatch = null; app.renderQuestion(); };
     fb.appendChild(go);
     if (go.scrollIntoView) go.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
@@ -321,7 +338,26 @@ function readingGate(app, q, story, total) {
     app.saveProgress();
     goOn();
   };
-  const listenAgain = listenChunks(btn, note, chunks, () => !app.heardStories.includes(key), heard, { listen: '🔊 Listen to the passage', again: '🔊 Listen again' });
+  // paragraph by paragraph: a ✓ on each 🔊 heard to its end; all of them = heard (a big Listen still running ends as
+  // its own listen, so a whole passage heard with it is logged as the voice)
+  const paras = [...panel.querySelectorAll('.story-para')];
+  const markParas = got => paras.forEach(p => {
+    const b = p.querySelector('.para-speak-btn');
+    if (b) b.classList.toggle('heard', got.has(Number(p.dataset.para)));
+  });
+  parasHeard[key] = new Set();
+  const onPara = () => {
+    const got = parasHeard[key];
+    markParas(got);
+    if (app.heardStories.includes(key) || !btn.isConnected) return;
+    if (listenJob && !listenJob.settled && listenJob.btn === btn) return;
+    if (got.size >= paras.length) { heard('paras'); return; }
+    note.textContent = `You heard ${got.size} of ${paras.length} paragraphs. Hear them all. Then you can go on.`;
+  };
+  parasWatch = { key, onPara };
+  markParas(parasHeard[key]);
+  const listenAgain = listenChunks(btn, note, chunks, () => !app.heardStories.includes(key), heard, { listen: '🔊 Listen to the passage', again: '🔊 Listen again' },
+    para => paraHeard(key, para));
   app.saveProgress();
 }
 

@@ -643,9 +643,12 @@ let listenJob = null;   // the forced listen now speaking, if any
 function stopActiveSpeech() {
   clearTimeout(hlTimer);
   if (listenJob && !listenJob.settled) listenJob.abort();   // cut off before the end → it does not count
+  // let go of the speaker BEFORE the cancel: a voice that reports the cut-off as an end must not count as heard
+  const was = activeSpeakBtn;
+  activeSpeakBtn = null;
+  if (was) was.textContent = '🔊';
   window.speechSynthesis.cancel();
   document.querySelectorAll('.wrd.hl').forEach(e => e.classList.remove('hl'));
-  if (activeSpeakBtn) { activeSpeakBtn.textContent = '🔊'; activeSpeakBtn = null; }
 }
 
 /* ── HINT BOX (Marcos 10/7) ──
@@ -770,6 +773,37 @@ function setPartBanner(form) {
     (L.goal ? `<span class="pb-goal">You are learning to ${L.goal}.</span>` : '');
 }
 
+/* ── THE PASSAGE BOX FOLLOWS THE VOICE ──────────────
+   Marcos 10/26: "if the story is being read aloud and highlighted, shouldn't the story
+   scroll itself to keep the screen from not seeing the highlighting". A lit word near the
+   bottom of the part of the passage box that is on the screen (on a Chromebook the box can
+   hang below the window), or above its top, brings its line up to a third of the way down.
+   The box scrolls, not the page, so the Listen button stays where it is; only when the box
+   is at its end and the word is still off the screen does the page move the rest of the way.
+   Words outside a passage box are left alone. */
+function followLitWord(el) {
+  const box = el && el.closest ? el.closest('.story-scroll') : null;
+  if (!box) return;
+  const b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const top = Math.max(b.top, 0), bottom = Math.min(b.bottom, vh);   // the part of the box on the screen
+  const seen = Math.max(0, bottom - top);
+  const pad = Math.min(40, seen / 6);
+  if (r.top >= top + 4 && r.bottom <= bottom - pad) return;          // on the screen: leave it alone
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const behavior = still ? 'auto' : 'smooth';
+  const want = r.top - top - seen / 3;                                // how far its line is from a third of the way down
+  const room = want > 0 ? box.scrollHeight - box.clientHeight - box.scrollTop : -box.scrollTop;
+  const byBox = want > 0 ? Math.min(want, room) : Math.max(want, room);
+  if (Math.abs(byBox) >= 1) {
+    if (box.scrollTo) box.scrollTo({ top: box.scrollTop + byBox, behavior });
+    else box.scrollTop += byBox;
+  }
+  const under = r.bottom - byBox - (vh - pad), over = r.top - byBox - pad;
+  if (under > 0) window.scrollBy({ top: under, behavior });           // the box is at its end: the page goes the rest
+  else if (over < 0) window.scrollBy({ top: over, behavior });
+}
+
 /* ── HIGHLIGHT FALLBACK ─────────────────────────────
    Some voices (and some browsers) never fire word-boundary
    events, so the highlight would never move. If no boundary
@@ -811,6 +845,7 @@ function addHighlightFallback(u, spans) {
     if (i >= spans.length) return;
     const w = spans[i++];
     w.classList.add('hl');
+    followLitWord(w);
     const len = (w.textContent || '').replace(/[^A-Za-z0-9]/g, '').length;
     hlTimer = setTimeout(step, Math.max(280, len * 70 + 120) / (u.rate || 1));
   };
