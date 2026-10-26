@@ -36,7 +36,7 @@ function speakEl(btn, el, rate) {
   activeSpeakBtn = btn;
   btn.textContent = '⏹';
   const u = new SpeechSynthesisUtterance(spans.map(s => s.textContent).join(' '));
-  u.lang = 'en-US'; u.rate = rate || 0.9;
+  u.lang = 'en-US'; u.rate = rate || READ_RATE;
   let i = 0;
   u.onboundary = e => {
     if (e.name !== 'word') return;
@@ -182,7 +182,7 @@ function listenChunks(btn, note, chunks, pending, heard, labels) {
       if (k >= chunks.length) { finish(true); return; }
       const c = chunks[k];
       const u = new SpeechSynthesisUtterance(c.text);
-      u.lang = 'en-US'; u.rate = 0.9;
+      u.lang = 'en-US'; u.rate = READ_RATE;
       let hl = 0, done = false, errored = false, cutOff = false, began = false;
       const next = () => {
         if (done || job.settled) return;
