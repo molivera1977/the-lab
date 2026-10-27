@@ -807,7 +807,10 @@ function followLitWord(el) {
   const pad = Math.min(40, seen / 6);
   if (r.top >= top + 4 && r.bottom <= bottom - pad) return;          // on the screen: leave it alone
   const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const behavior = still ? 'auto' : 'smooth';
+  // a word not on the screen at all (a paragraph's 🔊 tapped far up or down the box): jump straight there, so the
+  // next words are measured where they really are; reading line by line: a smooth glide
+  const gone = r.bottom <= top || r.top >= bottom;
+  const behavior = still || gone ? 'auto' : 'smooth';
   const want = r.top - top - seen / 3;                                // how far its line is from a third of the way down
   const room = want > 0 ? box.scrollHeight - box.clientHeight - box.scrollTop : -box.scrollTop;
   const byBox = want > 0 ? Math.min(want, room) : Math.max(want, room);
