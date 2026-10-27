@@ -134,7 +134,8 @@ function item(form, it, story, sKey, extra) {
   return { ...base, type: 'mc', q: it.q, choices: p.choices, answer: p.answer, slips: p.slips, explanation: p.explanation, ...(it.evidence ? { evidence: true } : {}) };
 }
 
-/* Every story of a lesson by key: RC1-T (teaching), RC1-v1-P (Show what you know), RC1-v1-A / -B (Your turn).
+/* Every story of a lesson by key: RC1-T (teaching), RC1-v1-P (Show what you know), RC1-v1-A / -B (Your turn; a
+   one-paragraph lesson, RPn, has four: -A to -D).
    A version with a teaching story of its own (v.teach: Level 2, a new worked example every try — Marcos 10/21 "one
    method, new numbers") keeps it as RD1-v1-T; a lesson with one teaching story for all versions keeps RC1-T. */
 const teachOf = (L, v) => (v && v.teach) || L.teach;
@@ -144,7 +145,7 @@ function storiesOf(form, L) {
   (L.versions || []).forEach((v, vi) => {
     if (v.teach && v.teach.story) out[storyKey(form, `v${vi + 1}-T`)] = v.teach.story;
     if (v.pre && v.pre.story) out[storyKey(form, `v${vi + 1}-P`)] = v.pre.story;
-    (v.turn || []).forEach((t, ti) => { out[storyKey(form, `v${vi + 1}-${'AB'[ti] || ti}`)] = t.story; });
+    (v.turn || []).forEach((t, ti) => { out[storyKey(form, `v${vi + 1}-${'ABCD'[ti] || ti}`)] = t.story; });
   });
   return out;
 }
@@ -169,7 +170,7 @@ function bankOf(form, L, vi) {
     });
   }
   (v.turn || []).forEach((t, ti) => {
-    const k = storyKey(form, `v${vi + 1}-${'AB'[ti] || ti}`);
+    const k = storyKey(form, `v${vi + 1}-${'ABCD'[ti] || ti}`);
     t.items.forEach(it => out.push(item(form, it, t.story, k, {})));
   });
   return out;

@@ -65,7 +65,11 @@ const STRANDS = [
   { id: 'bp', icon: '🚀', name: 'Place Value: Big Numbers', lessons: ['BP1', 'BP2', 'BP3', 'BP4', 'BP5'], after: 'pv' },
   { id: 'br', icon: '🗺️', name: 'Rounding: Big Numbers', lessons: ['BR1', 'BR2', 'BR3', 'BR4', 'BR5'], after: 'ro' },
   // Reading for Meaning (Marcos 10/20: "build a comprehension strand"): stands alone, no math gate
-  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RC1', 'RC2', 'RC3', 'RC4', 'RC5', 'RC6'] },
+  // ONE PARAGRAPH FIRST (Marcos 10/26: "a lesson that is a shorter exercise with just a paragraph to read from would
+  // practice the skill prior to throwing them into a 5 paragraph long story"): each skill's one-paragraph lesson comes
+  // right before its full lesson. Passing the full lesson counts for its paragraph lesson (PARAGRAPH_OF), so nobody is
+  // sent back.
+  { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RP1', 'RC1', 'RP2', 'RC2', 'RP3', 'RC3', 'RP4', 'RC4', 'RP5', 'RC5', 'RP6', 'RC6'] },
   // Level 2 (Marcos 10/22: "growth opportunities to kids at all levels not just my low"): the same test formats on grade
   // 4–5 stories. It waits for Level 1 only when Level 1 is on the student's plan too (lessonWait). The id is letters only:
   // the plan row is read with /plan=([a-z,]+)/, so "rc2" would be read as "rc".
@@ -111,6 +115,13 @@ const LESSONS = {
   BR4: { title: 'Which One Rounds To It?',          icon: '🔎' },
   BR5: { title: 'Big Rounding Check',               icon: '🏁', check: true, hints: false, pre: false },
   // the passage, the questions and the stories: data/rcN.js, read by reading.js; the screens: reading-ui.js
+  // one paragraph per story (data/rpN.js): the same skill as RCN, practiced short first (Marcos 10/26)
+  RP1: { title: 'Find the Proof: One Paragraph',    icon: '🔍', reading: true, hints: false },
+  RP2: { title: 'Part A and Part B: One Paragraph', icon: '🅰️', reading: true, hints: false },
+  RP3: { title: 'Click the Sentences: One Paragraph', icon: '👆', reading: true, hints: false },
+  RP4: { title: 'Choose Two: One Paragraph',        icon: '✌️', reading: true, hints: false },
+  RP5: { title: 'Words That Mean More: One Paragraph', icon: '🪄', reading: true, hints: false },
+  RP6: { title: 'Mostly About: One Paragraph',      icon: '🧭', reading: true, hints: false },
   RC1: { title: 'Find the Proof',                   icon: '🔍', reading: true, hints: false },
   RC2: { title: 'Part A and Part B',                icon: '🅰️', reading: true, hints: false },
   RC3: { title: 'Click the Sentences',              icon: '👆', reading: true, hints: false },
@@ -146,6 +157,9 @@ const LESSON_GOALS = {
   BR1: 'find the benchmarks and halfway for big numbers', BR2: 'round big numbers to the nearest thousand or ten thousand',
   BR3: 'round to the place the question names', BR4: 'find the number that rounds to a number',
   BR5: 'show what you know about rounding big numbers',
+  RP1: 'find the ONE sentence that proves an idea, in one paragraph', RP2: 'answer Part A, then prove it in Part B, in one paragraph',
+  RP3: 'click the sentences that show an idea, in one paragraph', RP4: 'pick the TWO answers that are both right, in one paragraph',
+  RP5: 'figure out what an idiom or a simile means, in one paragraph', RP6: 'tell what one paragraph is mostly about',
   RC1: 'find the ONE sentence that proves an idea', RC2: 'answer Part A, then prove your answer in Part B',
   RC3: 'click the sentences that show an idea',
   RC4: 'pick the TWO answers that are both right', RC5: 'figure out what an idiom or a simile really means',
@@ -176,6 +190,8 @@ function questionLabel(id) {
 // sheet's lab-seed tab has a row for them, form "plan=as,mu,pv,ro" (loadHistory fills PLANS at sign-in).
 // Everyone else who signs in sees the same lessons as practice.
 const PLANS = {};
+// each one-paragraph lesson → its full lesson (RP1 → RC1 …)
+const PARAGRAPH_OF = { RP1: 'RC1', RP2: 'RC2', RP3: 'RC3', RP4: 'RC4', RP5: 'RC5', RP6: 'RC6' };
 const FORMS = STRANDS.flatMap(st => st.lessons);
 const strandOf = id => STRANDS.find(st => st.lessons.includes(id));
 const passPct = id => (LESSONS[id] && LESSONS[id].facts ? FACTS_PASS_PCT : PASS_PCT);
@@ -920,7 +936,9 @@ function bestScore(name, form) {
 }
 function passed(name, form) {
   const best = bestScore(name, form);
-  return !!best && best.score / best.total * 100 >= passPct(form);
+  if (!!best && best.score / best.total * 100 >= passPct(form)) return true;
+  // a one-paragraph lesson counts as passed once its full lesson is (Marcos 10/26: nobody is sent back)
+  return !!PARAGRAPH_OF[form] && passed(name, PARAGRAPH_OF[form]);
 }
 /* How many right it takes on the lesson's own questions: 90% of 10 = 9 */
 function needFor(form) {
@@ -1161,7 +1179,9 @@ function applyFormLocks(name, state) {
       const n = scoredCount(window['LAB_' + id]);
       const rd = !!L.reading;   // reading counts points (Part A + Part B = 2) and a retry gets new stories
       const goal = L.goal ? `<span class="lesson-goal">${goalSentence(id)}</span>` : '';
-      const sub = !best ? `${id === nextUp ? '⭐ Do this next · ' : ''}${n} ${rd ? 'points' : 'questions'} · get ${needFor(id)} right`
+      // a one-paragraph lesson whose full lesson is passed is done without a try of its own (PARAGRAPH_OF, 10/26)
+      const sub = !best && passed(name, id) ? `✅ Done: you passed ${LESSONS[PARAGRAPH_OF[id]].title}.`
+        : !best ? `${id === nextUp ? '⭐ Do this next · ' : ''}${n} ${rd ? 'points' : 'questions'} · get ${needFor(id)} right`
         : passed(name, id) ? (best.restored ? '✅ Passed' : `✅ Passed · best ${best.score} of ${best.total}`)
         : `🔁 Best ${best.score} of ${best.total} · get ${Math.round(passPct(id))}% · ${rd ? 'new stories' : 'new numbers'}`;
       setFormButton(id, `${L.icon} ${L.title}`, goal + sub, lessonWait(name, id), b);

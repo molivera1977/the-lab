@@ -27,6 +27,9 @@
    - close wrong choices: a "which sentence" question or Part B has a wrong sentence from the proof's own paragraph;
      Part A and Choose TWO have a wrong choice that is partly right (toofar / onedetail)
    - click: a pick-2 list is 6 sentences, a pick-2 paragraph has 6 or more; Choose TWO has exactly 5 choices
+   ONE PARAGRAPH (RP1 … RP6, Marcos 10/26: "a shorter exercise with just a paragraph to read from" before the full lesson):
+   - every story is ONE paragraph (PARA_RANGE); every version has its own teaching paragraph; Your turn is FOUR one-paragraph
+     stories (A–D), 8 points; the questions read at FK ≤ 3.5 together (plainer than the full lessons' 4.0)
 ═══════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -51,9 +54,18 @@ const LEVEL2_RANGE = {
   turn:  { fk: [4.0, 5.0], words: [280, 400] }
 };
 const isLevel2 = form => /^RD\d+$/.test(form);
+// One paragraph (RP): the same easy words as Level 1, one paragraph per story, four Your-turn stories
+const PARA_RANGE = {
+  teach: { fk: [1.8, 2.8], words: [50, 120] },
+  pre:   { fk: [1.8, 2.8], words: [60, 120] },
+  turn:  { fk: [1.8, 2.8], words: [50, 120] }
+};
+const isParagraph = form => /^RP\d+$/.test(form);
+const turnStories = form => (isParagraph(form) ? 4 : 2);
+const questionFkMax = form => (isParagraph(form) ? 3.5 : 4.0);
 // a new worked example on every try (Marcos 10/21): Level 2, and every Level 1 lesson from RC4 on
-const needsOwnTeach = form => isLevel2(form) || (/^RC\d+$/.test(form) && Number(form.slice(2)) >= 4);
-const rangeOf = (form, part) => (part === 'turn' && TURN_RANGE[form]) || (isLevel2(form) ? LEVEL2_RANGE : STORY_RANGE)[part];
+const needsOwnTeach = form => isLevel2(form) || isParagraph(form) || (/^RC\d+$/.test(form) && Number(form.slice(2)) >= 4);
+const rangeOf = (form, part) => (part === 'turn' && TURN_RANGE[form]) || (isLevel2(form) ? LEVEL2_RANGE : isParagraph(form) ? PARA_RANGE : STORY_RANGE)[part];
 const CLOSE_KINDS = new Set(['toofar', 'onedetail']);   // a partly-right wrong choice
 const KNOWN_KINDS = new Set(Object.keys(R.KINDS));
 const POSITION_RE = /\b(first|second|third|fourth|last|top|bottom) (choice|answer|option)\b|\b(choice|answer|option) [A-E]\b/i;
@@ -62,7 +74,7 @@ const POSITION_RE = /\b(first|second|third|fourth|last|top|bottom) (choice|answe
 function loadLessons(dir) {
   const box = { window: {} };
   vm.createContext(box);
-  fs.readdirSync(dir).filter(f => /^r[cd]\d+\.js$/.test(f)).sort().forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), box));
+  fs.readdirSync(dir).filter(f => /^r[cdp]\d+\.js$/.test(f)).sort().forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), box));
   return box.window.LAB_RC || {};
 }
 
@@ -123,7 +135,8 @@ function checkAll(LESSONS, only, others) {
     if (others.has(t)) fail(`${at}: title "${story.title}" is already used by ${others.get(t)}`);
     const paras = story.paragraphs || [];
     const maxP = isLevel2(form) ? 10 : 8;
-    if (paras.length < 4 || paras.length > maxP) fail(`${at} "${story.title}": ${paras.length} paragraphs (want 4–${maxP})`);
+    if (isParagraph(form)) { if (paras.length !== 1) fail(`${at} "${story.title}": ${paras.length} paragraphs (a one-paragraph lesson has exactly 1)`); }
+    else if (paras.length < 4 || paras.length > maxP) fail(`${at} "${story.title}": ${paras.length} paragraphs (want 4–${maxP})`);
     const st = R.stats(paras);
     const ok = st.fk >= range.fk[0] && st.fk <= range.fk[1] && st.words >= range.words[0] && st.words <= range.words[1];
     if (st.fk < range.fk[0] || st.fk > range.fk[1]) fail(`${at} "${story.title}": FK ${st.fk.toFixed(2)} (want ${range.fk[0]}–${range.fk[1]})`);
@@ -289,7 +302,7 @@ function checkAll(LESSONS, only, others) {
       if (!it.phrase || !String(it.quote || '').includes(it.phrase)) fail(`${iat}: the phrase "${it.phrase}" is not in the quote`);
       if (it.phrase && !String(it.q || '').includes(it.phrase)) fail(`${iat}: the question does not name the phrase "${it.phrase}"`);
     }
-    if (form === 'RC5' && !acc.step) {
+    if ((form === 'RC5' || form === 'RP5') && !acc.step) {
       if (it.quote == null) fail(`${iat}: an RC5 question quotes the sentence (quote) and names the phrase (phrase)`);
       if (!kindsOf(it).includes('literal')) fail(`${iat}: needs a "word for word" wrong choice (kind literal)`);
     }
@@ -342,7 +355,7 @@ function checkAll(LESSONS, only, others) {
   Object.keys(LESSONS).sort((a, b) => a.slice(0, 2).localeCompare(b.slice(0, 2)) || Number(a.slice(2)) - Number(b.slice(2))).forEach(form => {
     if (only.length && !only.includes(form)) return;
     const L = LESSONS[form];
-    if (!/^R[CD]\d+$/.test(form)) { fail(`${form}: a reading lesson is named RC or RD + a number`); return; }
+    if (!/^R[CDP]\d+$/.test(form)) { fail(`${form}: a reading lesson is named RC, RD or RP + a number`); return; }
     const turnRange = rangeOf(form, 'turn');
 
     // ── teaching: one story for every version (Level 1), or a new one in every version (Level 2: v.teach) ──
@@ -397,9 +410,9 @@ function checkAll(LESSONS, only, others) {
       const vat = `${form} v${vi + 1}`;
       const shapes = [];
       const vacc = newAcc();
-      const parts = [['pre', v.pre, rangeOf(form, 'pre')], ...((v.turn || []).map((t, ti) => [`turn ${'AB'[ti]}`, t, turnRange]))];
+      const parts = [['pre', v.pre, rangeOf(form, 'pre')], ...((v.turn || []).map((t, ti) => [`turn ${'ABCD'[ti]}`, t, turnRange]))];
       if (!v.pre) fail(`${vat}: no pre`);
-      if ((v.turn || []).length !== 2) fail(`${vat}: ${(v.turn || []).length} turn stories (want 2)`);
+      if ((v.turn || []).length !== turnStories(form)) fail(`${vat}: ${(v.turn || []).length} turn stories (want ${turnStories(form)})`);
       parts.forEach(([name, part, range]) => {
         if (!part) return;
         const at = `${vat} ${name}`;
@@ -419,7 +432,7 @@ function checkAll(LESSONS, only, others) {
       const w = R.stats(vacc.whys).fk, n = R.stats(vacc.notes).fk, q = R.stats(vacc.qs).fk;
       if (vacc.whys.length && w > 3.0) fail(`${vat}: the why lines read at ${w.toFixed(2)} (want ≤ 3.0 together)`);
       if (vacc.notes.length && n > 3.0) fail(`${vat}: the wrong-choice notes read at ${n.toFixed(2)} (want ≤ 3.0 together)`);
-      if (vacc.qs.length && q > 4.0) fail(`${vat}: the questions read at ${q.toFixed(2)} (want ≤ 4.0 together)`);
+      if (vacc.qs.length && q > questionFkMax(form)) fail(`${vat}: the questions read at ${q.toFixed(2)} (want ≤ ${questionFkMax(form)} together)`);
       if (vacc.mc >= 4 && vacc.longest > vacc.mc / 2) fail(`${vat}: the right answer is the longest choice in ${vacc.longest} of ${vacc.mc} questions`);
       if (vacc.mc >= 4 && vacc.shortest > vacc.mc / 3) fail(`${vat}: the right answer is the shortest choice in ${vacc.shortest} of ${vacc.mc} questions (a child can learn "pick the short one")`);
       vacc.whys.forEach(t => allText.push([vat + ' why', t]));
@@ -550,7 +563,7 @@ function plantsFor(LESSONS, others, form) {
 /* ═══ RUN ═══ */
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const only = args.filter(a => /^R[CD]\d+$/i.test(a)).map(a => a.toUpperCase());
+  const only = args.filter(a => /^R[CDP]\d+$/i.test(a)).map(a => a.toUpperCase());
   const LESSONS = loadLessons(path.join(SITE, 'data'));
   const others = otherTitles();
   if (!Object.keys(LESSONS).length) { console.log('No reading lessons found (data/rcN.js, data/rdN.js).'); process.exit(1); }

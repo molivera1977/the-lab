@@ -520,3 +520,115 @@ The RD4 plan in the Level 2 section, at Level 1 reading:
 - **A written answer can be given away too.** An earlier question's why or note must not say all of a later 4–6 word answer, or 7 words in a row of a longer one — unless a wrong choice of that later question says the same words (a best summary and its wrong-order twin share events).
 - **"Too far" choices:** do not build them all on best / world / never / always / any. Give each story at least one plain overreach ("Hazel wants to be a builder when she grows up."), or a child rules them out by keyword without reading.
 - **A summary box's label** needs no end mark; the Lab's voice adds a pause after it.
+
+---
+
+# ONE PARAGRAPH: `data/rp1.js` – `rp6.js` (a short practice lesson right before each Level 1 lesson)
+
+Marcos 10/26, after the first full day of Lab reading (12 full reading lessons finished, 7 passed; 16 of the 27 misses
+were "find the proof" questions, mostly "the wrong person" and "true but not proof"): "I believe a lesson that is a
+shorter exercise with just a paragraph to read from would practice the skill prior to throwing them into a 5 paragraph
+long story."
+
+- **Where it sits:** each RPn comes right before RCn on every Level 1 plan: RP1 → RC1 → RP2 → RC2 … A student who
+  already has the skill gets all of Show what you know right and skips it. Passing RCn counts as passing RPn.
+- **What is different:** every story is ONE paragraph. The skill and the test words are the same as RCn; the reading
+  load is small, so the THINKING is what the child practices. Everything in the Level 1 spec still holds (item types,
+  kinds, notes, why lines, writing rules, banned premises and names, exact sentences, "name the thing").
+
+## Shape (the checker enforces it)
+```js
+window.LAB_RC = window.LAB_RC || {};
+window.LAB_RC.RP1 = {
+  versions: [   // EXACTLY 4; each has its OWN teaching paragraph (a new worked example every try)
+    { teach: { story: PARA, flow: [W1, W2, S1, S2, W3] },
+      pre:   { story: PARA, items: [...] },
+      turn:  [ { story: PARA, items: [...] }, { story: PARA, items: [...] },      // Your turn: FOUR one-paragraph
+               { story: PARA, items: [...] }, { story: PARA, items: [...] } ] },  // stories, 8 points in all
+    …
+  ]
+};
+```
+**PARA** = `{ title: 'A Title', paragraphs: ['ONE paragraph'] }` (exactly one paragraph).
+
+| Story | FK | Words | Sentences |
+|---|---|---|---|
+| teaching paragraph | 1.8 – 2.8 | 50 – 120 | 6 – 9 |
+| Show what you know | 1.8 – 2.8 | 60 – 120 | 6 – 9 |
+| Your turn (each of the 4) | 1.8 – 2.8 | 50 – 120 | 6 – 9 (RP3: 7 – 9) |
+
+- **Questions read at FK 3.5 or less together** per version (the full lessons allow 4.0). Aim for 3.0. Keep the test's
+  words (BEST, supports, Part A, Part B, Choose TWO, Click on the TWO sentences, mostly about), but in short stems, and
+  say **"the paragraph"** (there is only one): "Which sentence from the paragraph BEST shows that Lou is careful?"
+- Why lines, notes and watch lines: FK 3.0 or less together, as always.
+- Ids: teaching W1, W2, S1, S2, W3 (in that order, the same in every version); Show what you know P1, P2 (P3);
+  Your turn Q01–Q08 (RP2: Q01–Q04). Every version has the same ids, types, skills and pick counts in the same order.
+- Each paragraph is a tiny whole story or scene: someone, a place, a problem or a goal, what they do, how it ends.
+  Every idea a question asks about is SHOWN by a sentence in the paragraph, never stated.
+- Two questions on one paragraph ask about DIFFERENT ideas and never share 2 or more wrong choices. A sentence that is
+  the proof for one question may be a wrong choice for the other.
+
+## The teaching flow (every version; W1 and W3 may read nearly the same in all 4)
+- **W1** the skill's words, short, with an everyday example (the same words RCn teaches; RCn will teach them again).
+- **W2** "Watch me" — a worked example on THIS version's teaching paragraph; `lit` the sentence(s) it points to.
+- **S1** a small first step (below), **S2** the real question type on the teaching paragraph.
+- **W3** "The steps", then "Now you try."
+
+## Lesson plans
+### RP1 Find the Proof: One Paragraph (skill 'Evidence selection')
+- W1 "Proof in one paragraph": paragraph, idea, proof, supports (= proves), BEST; the crumbs example. W2: say the idea,
+  read each sentence, ask "Does this sentence SHOW the idea?", name one true-but-not-proof sentence. S1 mc "What idea does
+  the question ask us to prove?" (4 ideas). S2 mc evidence. W3: 1. Say the idea. 2. Read each sentence. 3. Pick the one
+  that SHOWS it.
+- pre: P1–P3, mc evidence. Your turn: 4 paragraphs × 2 mc evidence (Q01–Q08). All 4 choices are EXACT sentences of the
+  paragraph (`evidence: true`). Wrong kinds: notproof (most), wrongwho (a sentence about another person), opposite.
+  Include at least one `wrongwho` trap per paragraph: these were the two most-missed kinds on 10/26.
+
+### RP2 Part A and Part B: One Paragraph (skills: Part A per item, Part B 'Supporting detail')
+- W1 two parts + infer, with an example. W2 a worked ebsr. S1 mc Part A alone. S2 ebsr. W3 the steps (answer Part A;
+  find the sentence that proves it; Part B is your R.A.D. Detail).
+- pre: P1, P2 ebsr (['Drawing conclusions','Supporting detail'], ['Character inference','Supporting detail']).
+- Your turn: 4 paragraphs × 1 ebsr = 8 points: A Q01 ['Character inference', …] "Part A — What can you infer about ___?";
+  B Q02 ['Drawing conclusions', …] "Part A — What conclusion can be drawn about ___?"; C Q03 ['Character feelings', …]
+  "Part A — How does ___ feel when ___?"; D Q04 ['Drawing conclusions', …] "Part A — Why does ___ ___?" (never stated).
+
+### RP3 Click the Sentences: One Paragraph (skill 'Evidence selection')
+- W1 how clicking works (tap → yellow, tap again → back, then "That's My Answer!"), and TWO = BOTH must prove it.
+  W2 worked pick-2. S1 hot pick 1 `para: 1`. S2 hot pick 2 `para: 1`. W3 the steps + "Check both."
+- pre: P1 hot pick 1 `para: 1`, P2 hot pick 2 `para: 1`. Your turn: 4 paragraphs (7–9 sentences) × [hot pick 1 `para: 1`,
+  hot pick 2 `para: 1`] = Q01–Q08. Stems: "Click on the sentence from the paragraph that BEST shows ___." /
+  "Click on the TWO sentences from the paragraph that BEST show ___." Give each close wrong sentence a `notes` entry.
+
+### RP4 Choose Two: One Paragraph (ideas, not word meanings)
+- W1 "Choose TWO" (both must be right; all or nothing; tap and untap). W2 worked. S1 mc "Which ONE of these is true about
+  ___?". S2 ms the full Choose TWO. W3: find one the paragraph proves; test every other choice; check both.
+- ms: exactly 5 choices, the 2 right first, then 3 wrong, each wrong with a kind AND a note; at least one `toofar` or
+  `onedetail`. Stems end "Choose TWO answers."
+- pre: P1–P3 ms (Character inference, Drawing conclusions, Character feelings). Your turn: 4 paragraphs × 2 ms:
+  A Q01 Character inference, Q02 Character feelings · B Q03 Drawing conclusions, Q04 Character inference ·
+  C Q05 Character feelings, Q06 Drawing conclusions · D Q07 Theme ("Which TWO sentences BEST state lessons of the
+  paragraph?" — write D as a tiny fable or a story with a clear lesson), Q08 Character inference.
+
+### RP5 Words That Mean More: One Paragraph (skill 'Figurative language')
+- W1 idiom and simile, each with an everyday example. W2 a worked idiom: the sentence, the word-for-word trap, the
+  clues. S1 mc "Which phrase in this sentence is an idiom?". S2 mc what a simile means (quote + phrase). W3 the steps.
+- Every scored item has `quote` (an EXACT sentence) and `phrase` (inside the quote); stem: `Read this sentence from the
+  paragraph. “<quote>” What does the phrase “<phrase>” suggest about <who>?` At least one wrong choice is `literal`.
+- Each paragraph holds ONE idiom and ONE simile. pre: P1 mc idiom, P2 mc simile. Your turn: 4 paragraphs × [mc idiom,
+  mc simile] = Q01–Q08. Use common idioms a 4th grader can learn; not "cold feet" or "big break"; no idiom or simile
+  used twice in the lesson, and none already used in RC5 (grep data/rc5.js).
+
+### RP6 Mostly About: One Paragraph (skills 'Main idea' and 'Summary')
+- W1 main idea (what the WHOLE paragraph is about) vs a detail (one small part); a summary tells the key events in order.
+  W2 worked main idea (`lit` one detail). S1 mc "Which sentence is just one small detail?". S2 mc main idea. W3 the steps.
+- Each paragraph is a tiny story with 4–5 key events and a clear main idea.
+- pre: P1 main idea, P2 best summary. Your turn: A Q01 main idea, Q02 best summary · B Q03 main idea, Q04 missing key
+  event (`excerpt` = a 2–3 sentence summary of the paragraph that leaves out ONE key event; `excerptLabel`
+  `📝 A summary of “<title>”`; one wrong choice is `insummary`) · C Q05 main idea, Q06 best summary · D Q07 main idea,
+  Q08 missing key event. Main-idea stem: "What is the paragraph mostly about?"; summary stem: "Which sentence BEST
+  summarizes the paragraph?"; missing stem: "Read this summary of the paragraph. Which KEY event is MISSING from the
+  summary?" Wrong kinds as in RC6 (onedetail, wrongtime, toofar, noclue, insummary).
+
+## Done means
+`node tools/check-reading.js RPn` prints "✓ all checks passed", and every paragraph passes the 9-year-old reread
+(exactly one right choice, every proof SHOWS the idea, no wrong choice a careful reader could defend).
