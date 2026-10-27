@@ -766,8 +766,9 @@ const PRACTICE_KEY = 'lab_rpract_v1';   // + ':' + name → [{ game, id, pick }]
 const PRACTICE_RE = /^P ([a-z0-9-]+):([A-Z]\d{2}(?:\.[AB])?) \((.*)\)$/;
 // which practice questions each lesson works on (the Read Literary slots, data/skills.js there)
 const PRACTICE_SLOTS = { RC1: ['08'], RC2: ['04', '09'], RC3: ['06', '15'], RC5: ['10', '14'], RC6: ['05', '07', '13'] };
-// Level 2 works on the same skills as Level 1 (RD4 Choose Two has none: the practice site's choose-two items are about word meaning)
-Object.assign(PRACTICE_SLOTS, { RD1: PRACTICE_SLOTS.RC1, RD2: PRACTICE_SLOTS.RC2, RD3: PRACTICE_SLOTS.RC3 });
+// Levels 2 and 3 work on the same skills as Level 1 (RM4/RD4 Choose Two have none: the practice site's choose-two items are about word meaning)
+Object.assign(PRACTICE_SLOTS, { RD1: PRACTICE_SLOTS.RC1, RD2: PRACTICE_SLOTS.RC2, RD3: PRACTICE_SLOTS.RC3,
+  RM1: PRACTICE_SLOTS.RC1, RM2: PRACTICE_SLOTS.RC2, RM3: PRACTICE_SLOTS.RC3 });   // the new Level 2 (10/26) too
 const PRACTICE_SITES = { rliab: { dir: '../sbac-read-literary-iab-review/data/', file: f => `form_${f}.js`, global: f => 'FORM_' + f.toUpperCase(), name: 'the SBAC reading practice' } };
 function practiceOf(game) {
   const m = /^(rliab)([wabc])-review$/.exec(game || '');

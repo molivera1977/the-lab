@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════
-   THE LAB · data/rd4.js — Reading for Meaning, Level 2, lesson RD4: Choose Two
+   THE LAB · data/rd4.js — Reading for Meaning, Level 3, lesson RD4: Choose Two
    Choose TWO about IDEAS (Marcos 10/22: ideas, not word meanings). Every item is type 'ms', pick 2, 5 choices:
    the TWO right choices come first, then 3 wrong ones; the site shuffles. At least one wrong choice per
    question is PARTLY right (toofar / onedetail). Every wrong choice has a kind AND its own note.
    Teaches: Choose TWO means BOTH answers are right (one right + one wrong = no point, like the test);
    find one right answer first, then test EVERY other choice against the passage.
-   Level 2: a new teaching story in every version (same screens: W1, W2, S1 mc, S2 mc, S3 ms, W3).
+   Level 3: a new teaching story in every version (same screens: W1, W2, S1 mc, S2 mc, S3 ms, W3).
    pre:  P1 Character inference · P2 Drawing conclusions · P3 Theme
    turn: A = Q01 Character inference · Q02 Drawing conclusions · Q03 Character feelings · Q04 Theme
          B = Q05–Q08, the same four slots.

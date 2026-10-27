@@ -632,3 +632,48 @@ window.LAB_RC.RP1 = {
 ## Done means
 `node tools/check-reading.js RPn` prints "✓ all checks passed", and every paragraph passes the 9-year-old reread
 (exactly one right choice, every proof SHOWS the idea, no wrong choice a careful reader could defend).
+
+---
+
+# THE MIDDLE LEVEL: `data/rm1.js` – `rm4.js` (the new Level 2; the old Level 2 is now Level 3)
+
+Marcos 10/26: "having more of a transition from level 1 to 2 is needed" · "Should we just relabel Level 2 as Level 3".
+On the first full day, the two students who started at the old Level 2 and missed (5 of 8 on Find the Proof: Level 2)
+both picked "true but not proof" sentences — the close trap — on grade 4–5 stories of 280–400 words.
+
+- **Who:** everyone headed to Level 3 — Level 1 students after RC1–RC6, and the students placed straight at the old
+  Level 2. Passing a Level 3 lesson counts for its Level 2 lesson (PASSED_WITH), so nobody who already passed is sent back.
+- **The idea:** the SAME four lessons, test formats and close wrong choices as Level 3 (RD1–RD4: read those sections
+  above — "LEVEL 2: data/rd1.js – rd4.js", now called Level 3), on MEDIUM stories. The traps are the same; the reading
+  load is the step between.
+- **Titles (kid-facing):** RM1 "Find the Proof: Level 2" · RM2 "Part A and Part B: Level 2" · RM3 "Click the Sentences:
+  Level 2" · RM4 "Choose Two: Level 2". Say "Level 2" in the watch lines where RD says "Level 3" (W1 "Proof, Level 2",
+  W3 "The steps, Level 2", "In Level 2, some wrong choices are partly right"). RM1 W1 may say "Level 2 has a new trap.":
+  this is where the close-sentence trap is first taught.
+
+## Shape (the checker enforces it)
+Exactly like RD: 4 versions; each has its OWN `teach: { story, flow }` (the same flow shape in all 4), `pre: { story,
+items }`, and `turn: [ {story, items}, {story, items} ]`, 8 points. Ids, types, skills and pick counts as in RDn.
+
+| Story | FK | Words | Paragraphs |
+|---|---|---|---|
+| Teaching story (one per version) | 2.6 – 3.6 | 140 – 230 | 4 – 10 |
+| Show what you know | 2.8 – 3.8 | 140 – 230 | 4 – 10 |
+| Your turn (RM1, RM2, RM4) | 2.8 – 3.8 | 180 – 280 | 4 – 10 |
+| Your turn (RM3: click areas need sentences) | 2.8 – 3.8 | 220 – 320 | 4 – 10 |
+
+- **Sentences:** about 10–13 words, a normal mix of one- and two-syllable words with some three-syllable words.
+  (Level 1 is 8–11 words; Level 3 is 12–17.) Check one story with `node tools/fk.js "paragraph" …`.
+- **The teaching voice stays easy:** watch lines, why lines, notes, and the steps' why lines and notes at FK ≤ 3.0
+  together per version; questions at FK ≤ 4.0.
+- **Close wrong choices (the same rules as Level 3, enforced):** a "which sentence" question and every Part B has a
+  wrong sentence from the proof's own paragraph (true, about the same moment, `notproof`); every Part A and Choose TWO
+  has a partly-right wrong choice (`toofar` / `onedetail`); click pick-2 lists are exactly 6 sentences, a pick-2
+  paragraph has 6+; Choose TWO has exactly 5 choices. Use `wrongwho` traps (the right idea, the wrong person) too —
+  "the wrong person" and "true but not proof" were the two most-missed kinds on 10/26.
+- **Premises must be new:** grep the premise index and every `data/*.js` (rc, rd, rp files) for a premise's key nouns
+  before settling on it. All the Level 1, one-paragraph and Level 3 banned premises and names still apply.
+
+## Done means
+`node tools/check-reading.js RMn` prints "✓ all checks passed", and the 10-year-old reread (exactly one right choice,
+two for Choose TWO; the close sentence truly NOT proof; every proof SHOWS the idea; versions about different things).

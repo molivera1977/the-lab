@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   THE LAB · data/rd1.js — Reading for Meaning, Level 2: RD1 "Find the Proof: Level 2" (skill: Evidence selection)
+   THE LAB · data/rd1.js — Reading for Meaning, Level 3: RD1 "Find the Proof: Level 3" (skill: Evidence selection)
    Same as RC1, on grade 4–5 stories with CLOSE wrong choices. The new point: a sentence can be in the
    right paragraph and about the right idea, and STILL not prove it. Proof SHOWS the idea.
    Every version has its OWN teaching story (a new worked example each try), taught the same way:
@@ -25,13 +25,13 @@ window.LAB_RC.RD1 = {
           ]
         },
         flow: [
-          { kind: 'watch', id: 'W1', title: 'Proof, Level 2',
+          { kind: 'watch', id: 'W1', title: 'Proof, Level 3',
             lines: [
               `You know these test words. Let's say them again.`,
               `A passage is the story you read on a test. A paragraph is one part of the passage. Each paragraph has a number.`,
               `An idea is a thing we think is true about the story. Proof is what shows that the idea is true.`,
               `Supports means proves. The BEST sentence proves the idea the most.`,
-              `Level 2 has a new trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
+              `Watch for a tricky trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
               `Here is an example. Your friend says the team is tired.`,
               `The game was long. That sentence is about the game. It does not show that the players are tired.`,
               `Every player sat down on the grass. That sentence SHOWS that they are tired.`,
@@ -86,7 +86,7 @@ window.LAB_RC.RD1 = {
               `Paragraph 3 says Grandma read. That is about Grandma, not Lou.`,
               `Paragraph 4 tells what Lou does after the dryer is done. The wait is over by then.`],
             why: `Paragraph 3 says Lou wanted to go home. But she did not complain. She sat and sorted the socks. That shows Lou is patient.` },
-          { kind: 'watch', id: 'W3', title: 'The steps, Level 2',
+          { kind: 'watch', id: 'W3', title: 'The steps, Level 3',
             lines: [
               `You can find the BEST proof in three steps.`,
               `Step 1. Say the idea in your own words.`,
@@ -301,13 +301,13 @@ window.LAB_RC.RD1 = {
           ]
         },
         flow: [
-          { kind: 'watch', id: 'W1', title: 'Proof, Level 2',
+          { kind: 'watch', id: 'W1', title: 'Proof, Level 3',
             lines: [
               `You know these test words. Let's say them again.`,
               `A passage is the story you read on a test. A paragraph is one part of the passage. Each paragraph has a number.`,
               `An idea is a thing we think is true about the story. Proof is what shows that the idea is true.`,
               `Supports means proves. The BEST sentence proves the idea the most.`,
-              `Level 2 has a new trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
+              `Watch for a tricky trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
               `Here is an example. Your friend says the team is tired.`,
               `The game was long. That sentence is about the game. It does not show that the players are tired.`,
               `Every player sat down on the grass. That sentence SHOWS that they are tired.`,
@@ -362,7 +362,7 @@ window.LAB_RC.RD1 = {
               `Paragraph 3 tells about a snowplow. It does not show what Otto does.`,
               `Paragraph 4 is after the walk. The hard part is over by then.`],
             why: `Paragraph 3 says the wind blew snow in his face. Otto pulled his hat down and kept walking. He did not turn back. That shows Otto does not give up.` },
-          { kind: 'watch', id: 'W3', title: 'The steps, Level 2',
+          { kind: 'watch', id: 'W3', title: 'The steps, Level 3',
             lines: [
               `You can find the BEST proof in three steps.`,
               `Step 1. Say the idea in your own words.`,
@@ -575,13 +575,13 @@ window.LAB_RC.RD1 = {
           ]
         },
         flow: [
-          { kind: 'watch', id: 'W1', title: 'Proof, Level 2',
+          { kind: 'watch', id: 'W1', title: 'Proof, Level 3',
             lines: [
               `You know these test words. Let's say them again.`,
               `A passage is the story you read on a test. A paragraph is one part of the passage. Each paragraph has a number.`,
               `An idea is a thing we think is true about the story. Proof is what shows that the idea is true.`,
               `Supports means proves. The BEST sentence proves the idea the most.`,
-              `Level 2 has a new trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
+              `Watch for a tricky trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
               `Here is an example. Your friend says the team is tired.`,
               `The game was long. That sentence is about the game. It does not show that the players are tired.`,
               `Every player sat down on the grass. That sentence SHOWS that they are tired.`,
@@ -636,7 +636,7 @@ window.LAB_RC.RD1 = {
               `Paragraph 3 tells what Maribel does. That is about Maribel, not Quentin.`,
               `Paragraph 4 is about the next turn. It does not show Quentin telling the truth.`],
             why: `Paragraph 3 says no one saw the tag. Quentin could have kept running. But he gave back the bandana and went to jail. That shows Quentin is honest.` },
-          { kind: 'watch', id: 'W3', title: 'The steps, Level 2',
+          { kind: 'watch', id: 'W3', title: 'The steps, Level 3',
             lines: [
               `You can find the BEST proof in three steps.`,
               `Step 1. Say the idea in your own words.`,
@@ -849,13 +849,13 @@ window.LAB_RC.RD1 = {
           ]
         },
         flow: [
-          { kind: 'watch', id: 'W1', title: 'Proof, Level 2',
+          { kind: 'watch', id: 'W1', title: 'Proof, Level 3',
             lines: [
               `You know these test words. Let's say them again.`,
               `A passage is the story you read on a test. A paragraph is one part of the passage. Each paragraph has a number.`,
               `An idea is a thing we think is true about the story. Proof is what shows that the idea is true.`,
               `Supports means proves. The BEST sentence proves the idea the most.`,
-              `Level 2 has a new trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
+              `Watch for a tricky trap. A sentence can be in the right paragraph. It can be about the idea. And it can STILL not be proof.`,
               `Here is an example. Your friend says the team is tired.`,
               `The game was long. That sentence is about the game. It does not show that the players are tired.`,
               `Every player sat down on the grass. That sentence SHOWS that they are tired.`,
@@ -910,7 +910,7 @@ window.LAB_RC.RD1 = {
               `Paragraph 3 tells what Delphine asks. That is about Delphine, not Mr. Lindgren.`,
               `Paragraph 1 is from before Delphine knocks. It tells how Mr. Lindgren seemed then. It does not show him being friendly.`],
             why: `Paragraph 3 says Mr. Lindgren grinned. He gave Delphine a whole bucket of balls. That shows he is friendly.` },
-          { kind: 'watch', id: 'W3', title: 'The steps, Level 2',
+          { kind: 'watch', id: 'W3', title: 'The steps, Level 3',
             lines: [
               `You can find the BEST proof in three steps.`,
               `Step 1. Say the idea in your own words.`,

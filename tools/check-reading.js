@@ -30,6 +30,8 @@
    ONE PARAGRAPH (RP1 … RP6, Marcos 10/26: "a shorter exercise with just a paragraph to read from" before the full lesson):
    - every story is ONE paragraph (PARA_RANGE); every version has its own teaching paragraph; Your turn is FOUR one-paragraph
      stories (A–D), 8 points; the questions read at FK ≤ 3.5 together (plainer than the full lessons' 4.0)
+   THE MIDDLE LEVEL (RM1 … RM4, Marcos 10/26: "having more of a transition from level 1 to 2 is needed"): the new Level 2,
+   the same rules as Level 3 (RD, the old Level 2) on stories between Level 1 and Level 3 (MID_RANGE)
 ═══════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -46,14 +48,22 @@ const STORY_RANGE = {
 };
 // lessons whose Your-turn stories need more sentences (four click questions on one story)
 const TURN_RANGE = { RC3: { fk: [1.8, 2.8], words: [130, 210] }, RC5: { fk: [1.8, 2.8], words: [130, 210] }, RC6: { fk: [1.8, 2.8], words: [130, 210] },
-  RC8: { fk: [2.8, 3.3], words: [130, 220] }, RD3: { fk: [4.0, 5.0], words: [320, 450] } };
+  RC8: { fk: [2.8, 3.3], words: [130, 220] }, RD3: { fk: [4.0, 5.0], words: [320, 450] }, RM3: { fk: [2.8, 3.8], words: [220, 320] } };
 // Level 2 (RD): grade 4–5 stories. The class's IAB-style practice forms measure FK 3.6–4.6 at 630–735 words.
 const LEVEL2_RANGE = {
   teach: { fk: [3.5, 4.5], words: [180, 280] },
   pre:   { fk: [4.0, 5.0], words: [180, 280] },
   turn:  { fk: [4.0, 5.0], words: [280, 400] }
 };
-const isLevel2 = form => /^RD\d+$/.test(form);
+// 10/26: the old Level 2 (RD) is Level 3, and a new Level 2 (RM) sits between Level 1 and Level 3. Both use the close-choice
+// rules below (isLevel2 = "a level with close choices": RM and RD); RM reads in MID_RANGE, between Level 1 and Level 3.
+const isMid = form => /^RM\d+$/.test(form);
+const isLevel2 = form => /^R[DM]\d+$/.test(form);
+const MID_RANGE = {
+  teach: { fk: [2.6, 3.6], words: [140, 230] },
+  pre:   { fk: [2.8, 3.8], words: [140, 230] },
+  turn:  { fk: [2.8, 3.8], words: [180, 280] }
+};
 // One paragraph (RP): the same easy words as Level 1, one paragraph per story, four Your-turn stories
 const PARA_RANGE = {
   teach: { fk: [1.8, 2.8], words: [50, 120] },
@@ -65,7 +75,7 @@ const turnStories = form => (isParagraph(form) ? 4 : 2);
 const questionFkMax = form => (isParagraph(form) ? 3.5 : 4.0);
 // a new worked example on every try (Marcos 10/21): Level 2, and every Level 1 lesson from RC4 on
 const needsOwnTeach = form => isLevel2(form) || isParagraph(form) || (/^RC\d+$/.test(form) && Number(form.slice(2)) >= 4);
-const rangeOf = (form, part) => (part === 'turn' && TURN_RANGE[form]) || (isLevel2(form) ? LEVEL2_RANGE : isParagraph(form) ? PARA_RANGE : STORY_RANGE)[part];
+const rangeOf = (form, part) => (part === 'turn' && TURN_RANGE[form]) || (isMid(form) ? MID_RANGE : isLevel2(form) ? LEVEL2_RANGE : isParagraph(form) ? PARA_RANGE : STORY_RANGE)[part];
 const CLOSE_KINDS = new Set(['toofar', 'onedetail']);   // a partly-right wrong choice
 const KNOWN_KINDS = new Set(Object.keys(R.KINDS));
 const POSITION_RE = /\b(first|second|third|fourth|last|top|bottom) (choice|answer|option)\b|\b(choice|answer|option) [A-E]\b/i;
@@ -74,7 +84,7 @@ const POSITION_RE = /\b(first|second|third|fourth|last|top|bottom) (choice|answe
 function loadLessons(dir) {
   const box = { window: {} };
   vm.createContext(box);
-  fs.readdirSync(dir).filter(f => /^r[cdp]\d+\.js$/.test(f)).sort().forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), box));
+  fs.readdirSync(dir).filter(f => /^r[cdpm]\d+\.js$/.test(f)).sort().forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), box));
   return box.window.LAB_RC || {};
 }
 
@@ -355,7 +365,7 @@ function checkAll(LESSONS, only, others) {
   Object.keys(LESSONS).sort((a, b) => a.slice(0, 2).localeCompare(b.slice(0, 2)) || Number(a.slice(2)) - Number(b.slice(2))).forEach(form => {
     if (only.length && !only.includes(form)) return;
     const L = LESSONS[form];
-    if (!/^R[CDP]\d+$/.test(form)) { fail(`${form}: a reading lesson is named RC, RD or RP + a number`); return; }
+    if (!/^R[CDPM]\d+$/.test(form)) { fail(`${form}: a reading lesson is named RC, RD, RP or RM + a number`); return; }
     const turnRange = rangeOf(form, 'turn');
 
     // ── teaching: one story for every version (Level 1), or a new one in every version (Level 2: v.teach) ──
@@ -563,7 +573,7 @@ function plantsFor(LESSONS, others, form) {
 /* ═══ RUN ═══ */
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const only = args.filter(a => /^R[CDP]\d+$/i.test(a)).map(a => a.toUpperCase());
+  const only = args.filter(a => /^R[CDPM]\d+$/i.test(a)).map(a => a.toUpperCase());
   const LESSONS = loadLessons(path.join(SITE, 'data'));
   const others = otherTitles();
   if (!Object.keys(LESSONS).length) { console.log('No reading lessons found (data/rcN.js, data/rdN.js).'); process.exit(1); }

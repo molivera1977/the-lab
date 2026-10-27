@@ -1,6 +1,6 @@
-/* THE LAB · Reading for Meaning · RD2 "Part A and Part B: Level 2"
+/* THE LAB · Reading for Meaning · RD2 "Part A and Part B: Level 3"
    Part A is your answer. Part B is the sentence that proves Part A (your R.A.D. Detail).
-   Level 2: grade 4–5 stories, a new teaching story in EVERY version, close wrong choices.
+   Level 3: grade 4–5 stories, a new teaching story in EVERY version, close wrong choices.
    Shape: tools/CONTENT-SPEC-READING.md (LEVEL 2 · RD2). Check: node tools/check-reading.js RD2
    Every version: teach { W1, W2, S1 mc, S2 mc evidence, S3 ebsr, W3 } · pre { P1, P2 } · turn A { Q01, Q02 } · turn B { Q03, Q04 } */
 window.LAB_RC = window.LAB_RC || {};
@@ -33,7 +33,7 @@ window.LAB_RC.RD2 = {
               'Some Part A questions ask which word BEST describes a person. Describes means tells what the person is like.',
               'Some Part A questions ask for a lesson of the story. A lesson is something the story teaches about life.',
               'You know this from Find the Proof. BEST supports means the sentence proves the answer the most.',
-              'In Level 2, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
+              'In Level 3, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
             ] },
           { kind: 'watch', id: 'W2', title: 'Watch me do Part A and Part B',
             lines: [
@@ -289,7 +289,7 @@ window.LAB_RC.RD2 = {
               'Some Part A questions ask which word BEST describes a person. Describes means tells what the person is like.',
               'Some Part A questions ask for a lesson of the story. A lesson is something the story teaches about life.',
               'You know this from Find the Proof. BEST supports means the sentence proves the answer the most.',
-              'In Level 2, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
+              'In Level 3, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
             ] },
           { kind: 'watch', id: 'W2', title: 'Watch me do Part A and Part B',
             lines: [
@@ -546,7 +546,7 @@ window.LAB_RC.RD2 = {
               'Some Part A questions ask which word BEST describes a person. Describes means tells what the person is like.',
               'Some Part A questions ask for a lesson of the story. A lesson is something the story teaches about life.',
               'You know this from Find the Proof. BEST supports means the sentence proves the answer the most.',
-              'In Level 2, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
+              'In Level 3, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
             ] },
           { kind: 'watch', id: 'W2', title: 'Watch me do Part A and Part B',
             lines: [
@@ -802,7 +802,7 @@ window.LAB_RC.RD2 = {
               'Some Part A questions ask which word BEST describes a person. Describes means tells what the person is like.',
               'Some Part A questions ask for a lesson of the story. A lesson is something the story teaches about life.',
               'You know this from Find the Proof. BEST supports means the sentence proves the answer the most.',
-              'In Level 2, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
+              'In Level 3, some wrong choices are partly right. They sound close, but they go too far. Watch for them.'
             ] },
           { kind: 'watch', id: 'W2', title: 'Watch me do Part A and Part B',
             lines: [

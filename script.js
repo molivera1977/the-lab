@@ -67,13 +67,18 @@ const STRANDS = [
   // Reading for Meaning (Marcos 10/20: "build a comprehension strand"): stands alone, no math gate
   // ONE PARAGRAPH FIRST (Marcos 10/26: "a lesson that is a shorter exercise with just a paragraph to read from would
   // practice the skill prior to throwing them into a 5 paragraph long story"): each skill's one-paragraph lesson comes
-  // right before its full lesson. Passing the full lesson counts for its paragraph lesson (PARAGRAPH_OF), so nobody is
+  // right before its full lesson. Passing the full lesson counts for its paragraph lesson (PASSED_WITH), so nobody is
   // sent back.
   { id: 'rc', icon: '🔎', name: 'Reading for Meaning', lessons: ['RP1', 'RC1', 'RP2', 'RC2', 'RP3', 'RC3', 'RP4', 'RC4', 'RP5', 'RC5', 'RP6', 'RC6'] },
   // Level 2 (Marcos 10/22: "growth opportunities to kids at all levels not just my low"): the same test formats on grade
   // 4–5 stories. It waits for Level 1 only when Level 1 is on the student's plan too (lessonWait). The id is letters only:
   // the plan row is read with /plan=([a-z,]+)/, so "rc2" would be read as "rc".
-  { id: 'rd', icon: '🔭', name: 'Reading for Meaning: Level 2', lessons: ['RD1', 'RD2', 'RD3', 'RD4'], after: 'rc' }
+  // THE MIDDLE LEVEL (Marcos 10/26: "having more of a transition from level 1 to 2 is needed" · "Should we just relabel
+  // Level 2 as Level 3"): a new Level 2 — the same four test formats on stories between Level 1 and Level 3 — and the
+  // old Level 2 is Level 3. Passing a Level 3 lesson counts for its Level 2 lesson (PASSED_WITH), so nobody is sent back.
+  // A strand can wait for more than one strand: each one that is on the student's plan (afterOf).
+  { id: 'rm', icon: '🪜', name: 'Reading for Meaning: Level 2', lessons: ['RM1', 'RM2', 'RM3', 'RM4'], after: 'rc' },
+  { id: 'rd', icon: '🔭', name: 'Reading for Meaning: Level 3', lessons: ['RD1', 'RD2', 'RD3', 'RD4'], after: ['rc', 'rm'] }
 ];
 const LESSONS = {
   AS1: { title: 'Count On to Add',                  icon: '🦘', facts: true },
@@ -129,10 +134,16 @@ const LESSONS = {
   RC4: { title: 'Choose Two',                       icon: '✌️', reading: true, hints: false },
   RC5: { title: 'Words That Mean More',             icon: '🪄', reading: true, hints: false },
   RC6: { title: 'What Is It Mostly About?',         icon: '🧭', reading: true, hints: false },
-  RD1: { title: 'Find the Proof: Level 2',          icon: '🔍', reading: true, hints: false },
-  RD2: { title: 'Part A and Part B: Level 2',       icon: '🅰️', reading: true, hints: false },
-  RD3: { title: 'Click the Sentences: Level 2',     icon: '👆', reading: true, hints: false },
-  RD4: { title: 'Choose Two: Level 2',              icon: '✌️', reading: true, hints: false }
+  // the new Level 2 (data/rmN.js, 10/26)
+  RM1: { title: 'Find the Proof: Level 2',          icon: '🔍', reading: true, hints: false },
+  RM2: { title: 'Part A and Part B: Level 2',       icon: '🅰️', reading: true, hints: false },
+  RM3: { title: 'Click the Sentences: Level 2',     icon: '👆', reading: true, hints: false },
+  RM4: { title: 'Choose Two: Level 2',              icon: '✌️', reading: true, hints: false },
+  // Level 3 (was Level 2 until 10/26)
+  RD1: { title: 'Find the Proof: Level 3',          icon: '🔍', reading: true, hints: false },
+  RD2: { title: 'Part A and Part B: Level 3',       icon: '🅰️', reading: true, hints: false },
+  RD3: { title: 'Click the Sentences: Level 3',     icon: '👆', reading: true, hints: false },
+  RD4: { title: 'Choose Two: Level 3',              icon: '✌️', reading: true, hints: false }
 };
 /* WHAT EACH LESSON HELPS WITH, in the student's words (Marcos 10/20: "say the titles of each lesson so the kids know
    what they are working on" · "I want them to know what they need help in"). A verb phrase: the plan says "You will
@@ -164,6 +175,8 @@ const LESSON_GOALS = {
   RC3: 'click the sentences that show an idea',
   RC4: 'pick the TWO answers that are both right', RC5: 'figure out what an idiom or a simile really means',
   RC6: 'tell what a paragraph or a story is mostly about',
+  RM1: 'find the sentence that BEST proves an idea in a medium story', RM2: 'answer Part A, then prove it in Part B, in a medium story',
+  RM3: 'click the sentences that BEST show an idea in a medium story', RM4: 'pick the TWO answers that are both right, in a medium story',
   RD1: 'find the sentence that BEST proves an idea in a longer story', RD2: 'answer Part A, then prove it in Part B, in a longer story',
   RD3: 'click the sentences that BEST show an idea in a longer story', RD4: 'pick the TWO answers that are both right, in a longer story'
 };
@@ -190,8 +203,11 @@ function questionLabel(id) {
 // sheet's lab-seed tab has a row for them, form "plan=as,mu,pv,ro" (loadHistory fills PLANS at sign-in).
 // Everyone else who signs in sees the same lessons as practice.
 const PLANS = {};
-// each one-paragraph lesson → its full lesson (RP1 → RC1 …)
-const PARAGRAPH_OF = { RP1: 'RC1', RP2: 'RC2', RP3: 'RC3', RP4: 'RC4', RP5: 'RC5', RP6: 'RC6' };
+// a lesson that counts as passed once its harder lesson is: each one-paragraph lesson → its full lesson (RP1 → RC1 …),
+// each Level 2 lesson → its Level 3 lesson (RM1 → RD1 …), 10/26
+const PASSED_WITH = { RP1: 'RC1', RP2: 'RC2', RP3: 'RC3', RP4: 'RC4', RP5: 'RC5', RP6: 'RC6', RM1: 'RD1', RM2: 'RD2', RM3: 'RD3', RM4: 'RD4' };
+// the strands a strand waits for (one id or a list)
+const afterOf = st => [].concat((st && st.after) || []);
 const FORMS = STRANDS.flatMap(st => st.lessons);
 const strandOf = id => STRANDS.find(st => st.lessons.includes(id));
 const passPct = id => (LESSONS[id] && LESSONS[id].facts ? FACTS_PASS_PCT : PASS_PCT);
@@ -940,8 +956,8 @@ function bestScore(name, form) {
 function passed(name, form) {
   const best = bestScore(name, form);
   if (!!best && best.score / best.total * 100 >= passPct(form)) return true;
-  // a one-paragraph lesson counts as passed once its full lesson is (Marcos 10/26: nobody is sent back)
-  return !!PARAGRAPH_OF[form] && passed(name, PARAGRAPH_OF[form]);
+  // a one-paragraph or Level 2 lesson counts as passed once its harder lesson is (Marcos 10/26: nobody is sent back)
+  return !!PASSED_WITH[form] && passed(name, PASSED_WITH[form]);
 }
 /* How many right it takes on the lesson's own questions: 90% of 10 = 9 */
 function needFor(form) {
@@ -958,8 +974,9 @@ function lessonWait(name, form) {
   if (!st) return 'Not open yet';
   // the strand before it locks it only when that strand is on this student's plan (Marcos 10/21: a plan of just
   // Place Value and Rounding starts at Place Value; before this, it stayed locked for good)
-  if (st.after && (planFor(name) || []).includes(st.after) && !strandPassed(name, st.after)) {
-    const first = STRANDS.find(x => x.id === st.after);
+  const before = afterOf(st).find(a => (planFor(name) || []).includes(a) && !strandPassed(name, a));
+  if (before) {
+    const first = STRANDS.find(x => x.id === before);
     return `Pass ${first ? first.name : 'the strand before'} first`;
   }
   const i = st.lessons.indexOf(form);
@@ -973,7 +990,7 @@ function lessonWait(name, form) {
    reading lesson, the next math lesson (the first one in plan order when the student has done neither yet). A lesson
    missed is still unpassed, so it comes back on its turn. The plan's ▶ Continue button and the end screen's Next both
    follow this. */
-const isReadingStrand = st => !!st && st.lessons.some(id => LESSONS[id] && LESSONS[id].reading);   // Level 1 and Level 2
+const isReadingStrand = st => !!st && st.lessons.some(id => LESSONS[id] && LESSONS[id].reading);   // Levels 1, 2 and 3
 /* The last lesson finished (passed or not) decides whose turn is next. Marcos 10/24: "fix the chromebook switching" — a
    Chromebook only knew its OWN tries, so on another Chromebook the turns started over. Now the lab-progress row carries
    the last finished lesson and when ("|last=RC1:1729706640000"); the newer of this Chromebook's and the row's wins. */
@@ -1035,7 +1052,7 @@ function routeFrom(name, strands, done, last) {
   const strandDone = sid => { const st = STRANDS.find(x => x.id === sid); return !!st && st.lessons.every(id => have.has(id)); };
   const waits = id => {
     const st = strandOf(id);
-    if (st.after && plan.includes(st.after) && !strandDone(st.after)) return true;
+    if (afterOf(st).some(a => plan.includes(a) && !strandDone(a))) return true;
     const i = st.lessons.indexOf(id);
     return i > 0 && !have.has(st.lessons[i - 1]);
   };
@@ -1164,7 +1181,7 @@ function applyFormLocks(name, state) {
     card.className = 'step-card strand-card strand-' + st.id;
     card.innerHTML = `<span class="step-label">${st.icon} ${st.name}</span>`;
     if (st.soon || !st.lessons.length) {
-      const why = st.after ? `Opens after ${STRANDS.find(x => x.id === st.after).name}.` : 'Coming soon.';
+      const why = afterOf(st).length ? `Opens after ${STRANDS.find(x => x.id === afterOf(st)[0]).name}.` : 'Coming soon.';
       card.insertAdjacentHTML('beforeend', `<p class="form-note">🔒 ${why}</p>`);
       listBox.appendChild(card);
       return;
@@ -1182,8 +1199,8 @@ function applyFormLocks(name, state) {
       const n = scoredCount(window['LAB_' + id]);
       const rd = !!L.reading;   // reading counts points (Part A + Part B = 2) and a retry gets new stories
       const goal = L.goal ? `<span class="lesson-goal">${goalSentence(id)}</span>` : '';
-      // a one-paragraph lesson whose full lesson is passed is done without a try of its own (PARAGRAPH_OF, 10/26)
-      const sub = !best && passed(name, id) ? `✅ Done: you passed ${LESSONS[PARAGRAPH_OF[id]].title}.`
+      // a one-paragraph or Level 2 lesson whose harder lesson is passed is done without a try of its own (PASSED_WITH, 10/26)
+      const sub = !best && passed(name, id) ? `✅ Done: you passed ${LESSONS[PASSED_WITH[id]].title}.`
         : !best ? `${id === nextUp ? '⭐ Do this next · ' : ''}${n} ${rd ? 'points' : 'questions'} · get ${needFor(id)} right`
         : passed(name, id) ? (best.restored ? '✅ Passed' : `✅ Passed · best ${best.score} of ${best.total}`)
         : `🔁 Best ${best.score} of ${best.total} · get ${Math.round(passPct(id))}% · ${rd ? 'new stories' : 'new numbers'}`;

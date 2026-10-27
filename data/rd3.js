@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════
-   THE LAB · data/rd3.js — Reading for Meaning, Level 2, lesson RD3: Click the Sentences: Level 2
+   THE LAB · data/rd3.js — Reading for Meaning, Level 3, lesson RD3: Click the Sentences: Level 3
    Skill: Evidence selection (hot text, like the test's "Click on the TWO sentences").
-   Level 2 (Marcos 10/22: "growth opportunities to kids at all levels"): grade 4–5 stories, a NEW teaching
+   Level 3 (Marcos 10/22: "growth opportunities to kids at all levels"): grade 4–5 stories, a NEW teaching
    story and worked example in EVERY version (one method, new stories), 6-sentence click lists, 6+ sentence
    click paragraphs, and a CLOSE wrong sentence in every pick-2 item (about the idea, but not proof) with a note.
    Teaches: how to click (tap = yellow, tap again = take it back, then That's My Answer!), that TWO means BOTH
