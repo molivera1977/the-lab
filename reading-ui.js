@@ -38,13 +38,12 @@ function speakEl(btn, el, rate, onHeard) {
   btn.textContent = '⏹';
   const u = new SpeechSynthesisUtterance(spans.map(s => s.textContent).join(' '));
   u.lang = 'en-US'; u.rate = rate || READ_RATE;
-  let i = 0, began = false;
+  let began = false;
   u.onstart = () => { began = true; };
   u.onboundary = e => {
     if (e.name !== 'word') return;
-    spans.forEach(s => s.classList.remove('hl'));
-    if (spans[i]) { spans[i].classList.add('hl'); followLitWord(spans[i]); }   // the passage box follows (script.js)
-    i++;
+    const lit = lightAt(spans, u.text, e.charIndex);   // the word the voice is on (script.js)
+    if (lit) followLitWord(lit);   // the passage box follows (script.js)
   };
   u.onend = e => {
     // a stop (stopActiveSpeech lets go of the button first) or a voice error is not "to its end"
@@ -198,7 +197,7 @@ function listenChunks(btn, note, chunks, pending, heard, labels, onChunk) {   //
       const c = chunks[k];
       const u = new SpeechSynthesisUtterance(c.text);
       u.lang = 'en-US'; u.rate = READ_RATE;
-      let hl = 0, done = false, errored = false, cutOff = false, began = false;
+      let done = false, errored = false, cutOff = false, began = false;
       const next = () => {
         if (done || job.settled) return;
         done = true;
@@ -225,9 +224,8 @@ function listenChunks(btn, note, chunks, pending, heard, labels, onChunk) {   //
       };
       u.onboundary = e => {
         if (e.name !== 'word') return;
-        c.spans.forEach(el => el.classList.remove('hl'));
-        if (c.spans[hl]) { c.spans[hl].classList.add('hl'); followLitWord(c.spans[hl]); }   // the passage box follows
-        hl++;
+        const lit = lightAt(c.spans, u.text, e.charIndex);   // the word the voice is on (script.js)
+        if (lit) followLitWord(lit);   // the passage box follows
       };
       u.onend = next;
       addHighlightFallback(u, c.spans);
