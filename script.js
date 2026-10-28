@@ -1701,8 +1701,13 @@ const app = {
     this.triesAt = triesDone;
     this.version = Array.isArray(versions) && versions.length ? triesDone % versions.length : 0;
     let rawBank = [...(this.version ? versions[this.version] : window['LAB_' + form])];
-    // 🎯 Show what you know: only on the first try at a lesson not yet passed (a retry goes straight to the lesson)
-    const offerPre = !reviewMode && triesDone === 0 && !passed(this.studentName, form);
+    // 🎯 Show what you know: only on the first try at a lesson not yet passed (a retry goes straight to the lesson).
+    // Not either once its harder lesson (PASSED_WITH) was tried and not passed: that try already showed the skill is
+    // not there yet, so the easier lesson is not skipped (Marcos 10/27, "go with option 1": both one-paragraph skips
+    // came right after a failed full lesson). Tries on any Chromebook count (getFormAttempts).
+    const harder = PASSED_WITH[form];
+    const failedHarder = !!harder && (getFormAttempts(this.studentName)[harder] || 0) > 0;
+    const offerPre = !reviewMode && triesDone === 0 && !passed(this.studentName, form) && !failedHarder;
     if (!offerPre) rawBank = rawBank.filter(q => q.kind !== 'pre');
     // the student's own missed facts: up to MINE_PRE_MAX in Show what you know, up to MINE_MAX more questions
     const preIdx = rawBank.filter(q => q.kind === 'pre').length;
