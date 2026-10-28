@@ -39,7 +39,7 @@ const PRE_COUNT     = 5;       // 🎯 Show what you know
 const MINE_MAX      = 4;       // at most this many of the student's own missed facts added to one try
 const MINE_PRE_MAX  = 2;       // … and this many added to Show what you know
 const MASTER_RIGHT  = 2;       // right this many times in the Lab → off the student's list
-const INSTRUCT_SECS = 20;
+const INSTRUCT_SECS = 15;
 // After an answer: a short pause before Next (after a miss, Next waits for the Listen instead)
 const NEXT_SECS     = 4;
 const STEP_NEXT_SECS = 3;
@@ -1923,7 +1923,7 @@ const app = {
     if (el) el.textContent = `${m}:${s}`;
   },
 
-  /* ── INSTRUCTIONS LOCK (20s) ── */
+  /* ── INSTRUCTIONS LOCK (15s) ── */
   startInstructionsTimer() {
     if (this.instructInterval) { clearInterval(this.instructInterval); this.instructInterval = null; }
     const btn   = document.getElementById('ready-btn');
