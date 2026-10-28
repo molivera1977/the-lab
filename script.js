@@ -381,6 +381,12 @@ function mergeWeak(into, from, mastered) {
 function passedList(name) {
   return FORMS.filter(id => passed(name, id));
 }
+// the lessons this student skipped by Show what you know (10/27): the backup carries them, so another Chromebook knows a
+// restored pass was a skip (see skipDoesNotCount)
+function skippedList(name) {
+  const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
+  return [...new Set(scores.filter(s => s.name === name && s.done && s.testedOut).map(s => s.form))].filter(id => LESSONS[id]);
+}
 const MASTERED_KEY = 'lab_mastered_v1';   // + ':' + name — facts taken off the list here, so a stale backup cannot put them back
 function readMastered(name) {
   try { return new Set(JSON.parse(localStorage.getItem(MASTERED_KEY + ':' + name) || '[]')); } catch (e) { return new Set(); }
@@ -396,7 +402,7 @@ function sendProgress(name) {
       action: 'submit', game: 'lab-progress', sessionId: 'labp-' + name, name,
       form: 'passed=' + done.join(',') + '|mastered=' + [...readMastered(name)].join(',') +
         (typeof kindsText === 'function' ? '|kinds=' + kindsText(readKinds(name)) : '') +
-        '|tries=' + triesText(getFormAttempts(name)) + '|on=' + onText(passDays(name)) + lastText(name),
+        '|tries=' + triesText(getFormAttempts(name)) + '|on=' + onText(passDays(name)) + lastText(name) + '|skipped=' + skippedList(name).join(','),
       score: done.length, total: FORMS.length, percent: Math.round(done.length / FORMS.length * 100),
       done: false, elapsed: 0, tabSwitches: 0,
       wrongQuestions: factListText(weak),
@@ -454,6 +460,9 @@ async function loadHistory(name) {
     });
     // a pass restored earlier without its day gets it now
     scores.forEach(s => { if (s.name === name && s.restored && !s.at && on[s.form]) s.at = fromDayNum(on[s.form]).toISOString(); });
+    // a restored pass that was a skip (Tested out) is marked so (10/27: a skip stops counting once the harder lesson is failed)
+    const skipped = new Set(((/skipped=([^|]*)/.exec(p.form) || [])[1] || '').split(',').filter(Boolean));
+    scores.forEach(s => { if (s.name === name && s.restored && skipped.has(s.form)) s.testedOut = true; });
     localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
     // the last lesson finished on any Chromebook (for whose turn it is)
     const last = /last=([A-Z]{2}\d):(\d+)/.exec(p.form);
@@ -948,13 +957,20 @@ function testCompleted(name) { return false; }   // the Lab has no one-try test
    Inside a strand, a lesson opens when the one before it is passed (90% on a facts lesson, or every
    Show-what-you-know question right). A strand with `after` opens when that whole strand is passed
    (Marcos 10/17: multiplying waits for adding and subtracting). The Teacher PIN lets one student past. */
-function bestScore(name, form) {
+function bestScore(name, form, noSkips) {
   const scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
-  return scores.filter(s => s.name === name && s.form === form && s.done && s.total > 0)
+  return scores.filter(s => s.name === name && s.form === form && s.done && s.total > 0 && !(noSkips && s.testedOut))
     .reduce((best, s) => (!best || s.score / s.total > best.score / best.total ? s : best), null);
 }
+/* A SKIP STOPS COUNTING once the harder lesson is tried and not passed (Marcos 10/27, "undo those skips"): a one-paragraph
+   or Level 2 lesson passed only by Show what you know (Tested out) is taught after all, because the harder lesson showed
+   the skill is not there yet. Its own taught pass still counts. */
+function skipDoesNotCount(name, form) {
+  const h = PASSED_WITH[form];
+  return !!h && (getFormAttempts(name)[h] || 0) > 0 && !passed(name, h);
+}
 function passed(name, form) {
-  const best = bestScore(name, form);
+  const best = bestScore(name, form, skipDoesNotCount(name, form));
   if (!!best && best.score / best.total * 100 >= passPct(form)) return true;
   // a one-paragraph or Level 2 lesson counts as passed once its harder lesson is (Marcos 10/26: nobody is sent back)
   return !!PASSED_WITH[form] && passed(name, PASSED_WITH[form]);
@@ -1195,7 +1211,7 @@ function applyFormLocks(name, state) {
       b.id = 'btn-form-' + id;
       b.onclick = () => app.attemptStart(id);
       grid.appendChild(b);
-      const best = bestScore(name, id);
+      const best = bestScore(name, id, skipDoesNotCount(name, id));   // a skip that no longer counts is not shown as a best
       const n = scoredCount(window['LAB_' + id]);
       const rd = !!L.reading;   // reading counts points (Part A + Part B = 2) and a retry gets new stories
       const goal = L.goal ? `<span class="lesson-goal">${goalSentence(id)}</span>` : '';
@@ -1705,8 +1721,7 @@ const app = {
     // Not either once its harder lesson (PASSED_WITH) was tried and not passed: that try already showed the skill is
     // not there yet, so the easier lesson is not skipped (Marcos 10/27, "go with option 1": both one-paragraph skips
     // came right after a failed full lesson). Tries on any Chromebook count (getFormAttempts).
-    const harder = PASSED_WITH[form];
-    const failedHarder = !!harder && (getFormAttempts(this.studentName)[harder] || 0) > 0;
+    const failedHarder = skipDoesNotCount(this.studentName, form);
     const offerPre = !reviewMode && triesDone === 0 && !passed(this.studentName, form) && !failedHarder;
     if (!offerPre) rawBank = rawBank.filter(q => q.kind !== 'pre');
     // the student's own missed facts: up to MINE_PRE_MAX in Show what you know, up to MINE_MAX more questions
