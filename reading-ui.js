@@ -37,7 +37,7 @@ function speakEl(btn, el, rate, onHeard) {
   activeSpeakBtn = btn;
   btn.textContent = '⏹';
   const u = new SpeechSynthesisUtterance(spans.map(s => s.textContent).join(' '));
-  u.lang = 'en-US'; u.rate = rate || READ_RATE;
+  english(u); u.rate = rate || READ_RATE;
   let began = false;
   u.onstart = () => { began = true; };
   u.onboundary = e => {
@@ -196,7 +196,7 @@ function listenChunks(btn, note, chunks, pending, heard, labels, onChunk) {   //
       if (k >= chunks.length) { finish(true); return; }
       const c = chunks[k];
       const u = new SpeechSynthesisUtterance(c.text);
-      u.lang = 'en-US'; u.rate = READ_RATE;
+      english(u); u.rate = READ_RATE;
       let done = false, errored = false, cutOff = false, began = false;
       const next = () => {
         if (done || job.settled) return;
@@ -206,7 +206,7 @@ function listenChunks(btn, note, chunks, pending, heard, labels, onChunk) {   //
         if (errored) { settle(); noVoice(); return; }
         if (cutOff) { finish(false); return; }         // stopped by something outside the page: not heard
         if (c.para && onChunk) onChunk(c.para);
-        setTimeout(() => say(k + 1), 250);
+        setTimeout(() => say(k + 1), LINE_PAUSE_MS);   // QPS's pause between lines (script.js)
       };
       // every paragraph must start within LISTEN_START_WAIT, not just the first (a voice can stall mid-passage)
       clearTimeout(job.startTimer);
