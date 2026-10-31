@@ -1493,7 +1493,7 @@ const app = {
 
   /* ── screens ── */
   show(id) {
-    ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen','teacher-screen','key-screen']
+    ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen','teacher-screen','key-screen','slide-screen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     if (id !== 'quiz-screen') document.body.classList.remove('story-active');   // 🔎 the passage layout ends with the lesson
@@ -1728,7 +1728,124 @@ const app = {
     location.href = `${location.pathname}${window.SHARE_LINK}&teach=${t.form}.${t.version}`;
   },
 
-  /* ✅ Answer key (Marcos 10/31, "go with step 2"): every Show what you know and Your turn question of the picked lesson
+  /* 🖥️ SLIDE MODE (Marcos 10/30: "do both and make that the standard moving forward. This would be good if a kid has a
+     question and i can call them up to my desk or the board to answer a question and have the actual lesson to refer
+     to"): the TEACHING only — the worked examples and the steps of the picked lesson and version, big, in lesson order.
+     Never Your turn or Show what you know: a child's try N gets version N's questions, so they never reach the board.
+     A step's answer stays hidden until 👀 Show Answer (steps are never scored). Reading: the passage beside each slide;
+     a worked example lights its sentences, Show Answer lights a step's right sentences. Nothing is saved or sent. */
+  teacherSlides() {
+    const t = this._teacherPick();
+    const V = window['LAB_' + t.form + '_V'];
+    const bank = t.version > 1 && Array.isArray(V) && V[t.version - 1] ? V[t.version - 1] : window['LAB_' + t.form];
+    const teach = bank.filter(q => q.kind === 'watch' || q.kind === 'step');
+    const nW = teach.filter(q => q.kind === 'watch').length, nS = teach.length - nW;
+    let w = 0, st = 0;
+    // the data lists the right choice first: mix the choices once here (Click the Sentences keeps the passage's order)
+    const mix = (q, p) => { const order = p.choices.map((_, i) => i); if (q.type !== 'hot') shuffle(order); return order; };
+    const list = teach.map(q => ({
+      q,
+      label: q.kind === 'watch' ? `👀 Worked example ${++w} of ${nW}${q.title ? ': ' + q.title : ''}` : `🪜 Step ${++st} of ${nS}`,
+      orders: q.kind !== 'step' ? [] : q.type === 'ebsr' ? [mix(q, q.partA), mix(q, q.partB)] : [mix(q, q)]
+    }));
+    this._slides = { form: t.form, version: t.version, list, at: 0, shown: false };
+    this.show('slide-screen');
+    document.body.classList.add('slides-active');
+    const jump = document.getElementById('sl-jump');
+    jump.innerHTML = '';
+    list.forEach((sl, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = `${i + 1}. ${sl.label}`; jump.appendChild(o); });
+    document.getElementById('sl-title').textContent = `🖥️ Slide Mode · ${this._teachLabel(t.form, t.version)}`;
+    this._renderSlide();
+  },
+
+  _renderSlide() {
+    const S = this._slides, sl = S.list[S.at], q = sl.q;
+    stopActiveSpeech();
+    const read = !!LESSONS[S.form].reading;
+    const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const txt = x => read ? esc(x) : formatMathText(String(x));
+    const open = q.kind === 'step' && S.shown;
+    document.getElementById('sl-count').textContent = `Slide ${S.at + 1} of ${S.list.length}`;
+    document.getElementById('sl-jump').value = String(S.at);
+    let main = `<p class="sl-where">${esc(sl.label.split(':')[0])}</p>`;
+    if (q.kind === 'watch') {
+      main += `<h2 class="sl-h">${txt(q.title || '')}</h2>` + String(q.text || '').split('\n').map(l => `<p class="sl-line">${txt(l)}</p>`).join('');
+      if (!read && q.pic) main += `<div class="sl-pic">${LabV.explainHTML(q.pic)}</div>`;
+    } else {
+      const part = (p, order) => {
+        const rights = p.answers || [p.answer];
+        return `<p class="sl-ask">${txt(p.q)}</p><div class="sl-choices">` + order.map(i => {
+          const c = p.choices[i], right = open && rights.includes(c);
+          return `<div class="sl-choice${right ? ' sl-right' : ''}">${txt(c)}${right ? ' ✅' : ''}</div>`;
+        }).join('') + '</div>' + (open ? answerBox(p) : '');
+      };
+      // after Show Answer: why (when the step has one) and its worked picture (math), else the right answer in words
+      const answerBox = p => {
+        const why = p.explanation ? `<b>Why:</b> ${txt(p.explanation)}` : '';
+        const pic = p === q && !read && q.explain ? `<div class="sl-pic">${LabV.explainHTML(q.explain)}</div>` : '';
+        return `<div class="sl-answer">${why || pic ? why + pic : `<b>Answer:</b> ${txt((p.answers || [p.answer]).join(' · '))}`}</div>`;
+      };
+      if (!read && q.pic) main += `<div class="sl-pic">${LabV.picHTML(q.pic)}</div>`;
+      main += q.type === 'ebsr' ? part(q.partA, sl.orders[0]) + part(q.partB, sl.orders[1]) : part(q, sl.orders[0]);
+    }
+    let html = main;
+    if (q.story) {
+      const story = (window.LAB_STORIES || {})[q.story] || { title: '', paragraphs: [] };
+      const marks = q.kind === 'watch' ? (q.lit || []) : open && q.type === 'hot' ? (q.answers || [q.answer]) : [];
+      const cls = q.kind === 'watch' ? 'sl-lit' : 'sl-ans';
+      const light = para => marks.reduce((h, sent) => h.split(esc(sent)).join(`<mark class="${cls}">${esc(sent)}</mark>`), esc(para));
+      html = `<div class="sl-with-story"><div class="sl-story"><p class="sl-story-title">📖 ${esc(story.title)}</p>` +
+        story.paragraphs.map((para, i) => `<p class="sl-para"><span class="sl-para-n">${i + 1}</span>${light(para)}</p>`).join('') +
+        `</div><div class="sl-main">${main}</div></div>`;
+    }
+    document.getElementById('sl-body').innerHTML = html;
+    const last = S.at + 1 >= S.list.length, asking = q.kind === 'step' && !S.shown;
+    const next = document.getElementById('sl-next');
+    next.disabled = last && !asking;
+    next.textContent = asking ? '👀 Show Answer' : last ? '🏁 Last slide' : 'Next ▶';
+    document.getElementById('sl-back').disabled = S.at === 0;
+    document.getElementById('sl-prev').disabled = S.at === 0;
+    document.getElementById('sl-fwd').disabled = last;
+    // the passage scrolls to its first lit sentence; a new slide starts at the top, Show Answer brings the answer into view
+    const story = document.querySelector('#sl-body .sl-story'), mark = story && story.querySelector('mark');
+    if (story) story.scrollTop = mark ? Math.max(0, mark.getBoundingClientRect().top - story.getBoundingClientRect().top - 40) : 0;
+    const answer = open && document.querySelector('#sl-body .sl-answer');
+    if (answer) answer.scrollIntoView({ block: 'nearest' });
+    else window.scrollTo(0, 0);
+  },
+
+  slideNext() {
+    const S = this._slides;
+    if (!S) return;
+    if (S.list[S.at].q.kind === 'step' && !S.shown) { S.shown = true; this._renderSlide(); return; }
+    if (S.at + 1 >= S.list.length) return;
+    S.at += 1; S.shown = false;
+    this._renderSlide();
+  },
+
+  slideBack() {
+    const S = this._slides;
+    if (!S || S.at === 0) return;
+    S.at -= 1; S.shown = false;
+    this._renderSlide();
+  },
+
+  slideGo(i) {
+    const S = this._slides;
+    if (!S || !(i >= 0 && i < S.list.length)) return;
+    S.at = i; S.shown = false;
+    this._renderSlide();
+  },
+
+  exitSlides() {
+    stopActiveSpeech();
+    this._slides = null;
+    document.getElementById('sl-body').innerHTML = '';
+    document.body.classList.remove('slides-active');
+    this.openTeacher();
+  },
+
+  /* ✅ Answer key (Marcos 10/30, "go with step 2"): every Show what you know and Your turn question of the picked lesson
      and version, in lesson order, the right answer marked, and why. Reading: each passage once (numbered paragraphs)
      before its questions; Part A and Part B; a small trap tag under each wrong choice — the trap's words (KIND_LABEL)
      and the note a child sees after that miss (his pick: "Yes, small"). Math: the picture, the right choice, why. */
@@ -3185,6 +3302,16 @@ function stopConfetti() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   animId = null;
 }
+
+/* 🖥️ Slide Mode: the arrow keys and a clicker's Page Down / Page Up (Space too, unless a button has the keyboard) */
+document.addEventListener('keydown', e => {
+  if (!app._slides || document.getElementById('slide-screen').classList.contains('hidden')) return;
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+  const k = e.key;
+  if (k === 'ArrowRight' || k === 'PageDown' || (k === ' ' && tag !== 'BUTTON')) { e.preventDefault(); app.slideNext(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); app.slideBack(); }
+});
 
 /* ── BOOT ────────────────────────────────────────────── */
 app.init();
