@@ -1493,7 +1493,7 @@ const app = {
 
   /* ── screens ── */
   show(id) {
-    ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen','teacher-screen']
+    ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen','teacher-screen','key-screen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     if (id !== 'quiz-screen') document.body.classList.remove('story-active');   // 🔎 the passage layout ends with the lesson
@@ -1726,6 +1726,59 @@ const app = {
   teacherTry() {
     const t = this._teacherPick();
     location.href = `${location.pathname}${window.SHARE_LINK}&teach=${t.form}.${t.version}`;
+  },
+
+  /* ✅ Answer key (Marcos 10/31, "go with step 2"): every Show what you know and Your turn question of the picked lesson
+     and version, in lesson order, the right answer marked, and why. Reading: each passage once (numbered paragraphs)
+     before its questions; Part A and Part B; a small trap tag under each wrong choice — the trap's words (KIND_LABEL)
+     and the note a child sees after that miss (his pick: "Yes, small"). Math: the picture, the right choice, why. */
+  teacherKey() {
+    const t = this._teacherPick();
+    const V = window['LAB_' + t.form + '_V'];
+    const bank = t.version > 1 && Array.isArray(V) && V[t.version - 1] ? V[t.version - 1] : window['LAB_' + t.form];
+    const qs = bank.filter(q => q.kind === 'pre' || isScored(q));
+    const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const read = !!LESSONS[t.form].reading;
+    const txt = x => read ? esc(x) : formatMathText(String(x));
+    const LABELS = (window.LabReading && LabReading.KIND_LABEL) || {};   // the trap's words (reading.js), as on the dashboard
+    const trapWords = tag => LABELS[tag] || LABELS.note || 'wrong choice';
+    const choicesHTML = p => {
+      const rights = p.answers || [p.answer];
+      return `<ul class="key-choices">${p.choices.map(c => {
+        const right = rights.includes(c), slip = (p.slips || {})[c];
+        const trap = read && !right ? `<span class="key-trap">⚠️ <b>${esc(trapWords(slip && slip.tag))}</b>${slip && slip.say ? ' — ' + esc(slip.say) : ''}</span>` : '';
+        return `<li class="${right ? 'key-right' : ''}">${txt(c)}${right ? ' ✅' : ''}${trap}</li>`;
+      }).join('')}</ul>`;
+    };
+    const why = x => x ? `<div class="key-why"><b>Why:</b> ${txt(x)}</div>` : '';
+    let lastStory = null, sec = null, n = 0;
+    // a child sees the choices shuffled (shuffleQ), so the key has no letters
+    const html = [`<p class="key-note">Each child sees the choices in a shuffled order, so there are no letters here. The right answer has a ✅.</p>`];
+    qs.forEach(q => {
+      const s = q.kind === 'pre' ? 'pre' : 'turn';
+      if (s !== sec) { sec = s; n = 0; html.push(`<h3 class="key-sec">${s === 'pre' ? '🎯 Show what you know' : '✏️ Your turn'}</h3>`); }
+      n += 1;
+      if (q.story && q.story !== lastStory) {
+        lastStory = q.story;
+        const st = (window.LAB_STORIES || {})[q.story] || { title: '', paragraphs: [] };
+        html.push(`<div class="key-story"><p class="key-story-title">📖 ${esc(st.title)}</p>` +
+          st.paragraphs.map((para, i) => `<p class="key-para"><span class="key-para-n">${i + 1}</span>${esc(para)}</p>`).join('') + '</div>');
+      }
+      const where = `<p class="key-where">${s === 'pre' ? 'Show what you know' : 'Your turn'} · question ${n}</p>`;
+      const excerpt = Array.isArray(q.excerpt) && q.excerpt.length
+        ? `<div class="rc-excerpt"><div class="rc-excerpt-label">${esc(q.excerptLabel || 'Read this')}</div>${q.excerpt.map(l => `<p>${esc(l)}</p>`).join('')}</div>` : '';
+      let body;
+      if (q.type === 'ebsr') {
+        body = [q.partA, q.partB].map(p => `<div class="key-part"><p class="key-ask">${esc(p.q)}</p>${choicesHTML(p)}${why(p.explanation)}</div>`).join('');
+      } else {
+        const pic = !read && q.pic ? `<div class="key-pic">${LabV.picHTML(q.pic)}</div>` : '';
+        body = `<p class="key-ask">${txt(q.q)}</p>${excerpt}${pic}${choicesHTML(q)}${why(q.explanation)}`;
+      }
+      html.push(`<div class="key-q${s === 'pre' ? ' key-pre' : ''}">${where}${body}</div>`);
+    });
+    document.getElementById('key-title').textContent = `✅ Answer key · ${this._teachLabel(t.form, t.version)}`;
+    document.getElementById('key-body').innerHTML = html.join('');
+    this.show('key-screen');
   },
 
   backToTeacher() {

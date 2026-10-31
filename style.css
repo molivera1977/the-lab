@@ -1180,3 +1180,33 @@ body.teach-on { padding-bottom: 64px; }
 .teach-go { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 #teach-jump { font: inherit; font-weight: 400; max-width: 260px; min-width: 0; padding: 4px 6px; border-radius: 8px; border: 1px solid #d4a106; background: #fff; color: #5c4703; }
 .teach-bar button:disabled { opacity: 0.4; cursor: default; }
+
+/* ✅ Answer key (Teacher screen, step 2, 10/31): one block per question, the right answer in green; reading: the passage
+   once, then its questions; a small trap tag under each wrong choice */
+.key-sec { font-size: 1.15rem; color: var(--primary); margin: 18px 0 8px; }
+.key-story { border: 2px solid #cfe8e3; border-radius: 12px; padding: 10px 14px; margin: 14px 0 10px; background: #f6fbfa; break-inside: avoid; }
+.key-story-title { font-weight: 700; margin: 0 0 6px; }
+.key-para { margin: 4px 0; line-height: 1.5; }
+.key-para-n { display: inline-block; min-width: 1.6em; font-weight: 700; color: var(--primary); }
+.key-q { border: 1px solid #e3e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; break-inside: avoid; }
+.key-where { font-size: 0.85rem; color: #666; margin: 0 0 4px; }
+.key-ask { font-weight: 700; margin: 4px 0 8px; }
+.key-pic { margin: 6px 0; }
+.key-note { color: #555; font-size: 0.9rem; margin: 0 0 8px; }
+.key-choices { margin: 8px 0; padding-left: 22px; list-style: disc; }
+.key-choices li { margin: 4px 0; }
+.key-choices li.key-right { color: #1e7e46; font-weight: 700; }
+.key-trap { display: block; font-size: 0.82rem; color: #8a5a00; font-weight: 400; margin-top: 1px; }
+.key-trap b { font-weight: 700; }
+.key-part { margin-top: 8px; }
+.key-why { margin-top: 8px; padding: 8px 12px; background: #f1f8f4; border-radius: 10px; }
+
+@media print {
+  body.key-printing { background: #fff; padding: 0; }
+  body.key-printing .container > :not(#key-screen),
+  body.key-printing #key-screen .t-bar,
+  body.key-printing .share-banner,
+  body.key-printing #teach-bar,
+  body.key-printing canvas { display: none !important; }
+  body.key-printing .container { box-shadow: none; padding: 0; margin: 0; max-width: none; }
+}

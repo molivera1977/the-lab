@@ -6,7 +6,7 @@
   <title>The Lab: Back to Basics</title>
   <!-- tab icon: 🧪, drawn by the computer's own emoji font (Marcos 10/25: "i want this icon for the LAB tab") -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='.9em' font-size='90' text-anchor='middle'%3E%F0%9F%A7%AA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=teach1" />
+  <link rel="stylesheet" href="style.css?v=teach2" />
 </head>
 <body>
 <canvas id="confetti-canvas"></canvas>
@@ -383,7 +383,18 @@
     <p class="t-picked" id="t-picked"></p>
     <div class="t-actions">
       <button type="button" class="t-act" id="t-try" onclick="app.teacherTry()">👀 Try it as a student<span>You answer, like a student, from Show what you know to the end. ⏩ Skip the wait opens anything that is shut. Nothing is saved.</span></button>
+      <button type="button" class="t-act" id="t-key" onclick="app.teacherKey()">✅ Answer key<span>Every Show what you know and Your turn question on one page, the right answer marked, and why. Reading shows each trap. You can print it.</span></button>
     </div>
+  </div>
+
+  <!-- ✅ ANSWER KEY (Teacher screen, step 2, 10/31): filled in by script.js (teacherKey) -->
+  <div id="key-screen" class="hidden">
+    <div class="t-bar">
+      <span class="t-title" id="key-title">✅ Answer key</span>
+      <button type="button" class="t-exit" id="key-print-btn" onclick="document.body.classList.add('key-printing'); window.print(); document.body.classList.remove('key-printing');">🖨️ Print</button>
+      <button type="button" class="t-exit" id="key-back-btn" onclick="app.openTeacher()">← Teacher screen</button>
+    </div>
+    <div id="key-body"></div>
   </div>
 
   <!-- GLOBAL PIN MODAL -->
@@ -483,7 +494,7 @@
 <script src="data/rd3.js?v=rd3"></script>
 <script src="data/rd4.js?v=rd3"></script>
 <script src="reading.js?v=rp1"></script>
-<script src="script.js?v=teach1"></script>
+<script src="script.js?v=teach2"></script>
 <script src="qps-feed.js?v=qf1"></script>
 <script src="reading-ui.js?v=teach1"></script>
 </body>
