@@ -574,8 +574,21 @@ let unlockedForms   = new Set();
 let retakeUnlocked  = false;   // set by the Teacher PIN; cleared on Home
 let pinModalCallback = null;
 let activeSpeakBtn  = null;
-let reviewMode      = false;
-let reviewAutoRun   = false;
+let reviewMode      = false;   // only the tests set these now: they run every lesson to its end (the Teacher screen
+let reviewAutoRun   = false;   // replaced the Manual / Auto-run pop-ups on 10/30 — the Lab no longer answers for the teacher)
+
+/* 🧑‍🏫 THE TEACHER SCREEN (Marcos 10/30, "plan the LAB version"; Parts of Speech HQ's screen, 10/28): Teacher Access asks
+   the PIN in the page, then ONE screen: a strand, a lesson, a version — any lesson, nothing passed first. The PIN lasts
+   for this tab (sessionStorage) until ✕ Exit teacher. 👀 Try it as a student opens the guest view (share.js: nothing
+   reaches the sheet) on ?teach=<LESSON>.<version>, started the way a first try starts. */
+const TEACHER_KEY      = 'lab_teacher';        // sessionStorage: '1' = the Teacher PIN was given in this tab
+const TEACHER_PICK_KEY = 'lab_teacher_pick';   // sessionStorage: the last strand, lesson and version picked
+const TEACH = (() => {
+  const m = /^([A-Z]{2}\d)\.(\d+)$/.exec(new URLSearchParams(location.search).get('teach') || '');
+  return SHARE_MODE && m && LESSONS[m[1]] ? { form: m[1], version: Number(m[2]) } : null;
+})();
+function teacherUnlocked() { try { return sessionStorage.getItem(TEACHER_KEY) === '1'; } catch (e) { return false; } }
+const versionCount = id => { const v = window['LAB_' + id + '_V']; return Array.isArray(v) && v.length ? v.length : 1; };
 
 /* ── MATH HELPERS ───────────────────────────────────── */
 function frac(n, d) {
@@ -1480,7 +1493,7 @@ const app = {
 
   /* ── screens ── */
   show(id) {
-    ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen']
+    ['start-screen','readaloud-screen','directions-screen','quiz-screen','end-screen','scoreboard-screen','teacher-screen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     if (id !== 'quiz-screen') document.body.classList.remove('story-active');   // 🔎 the passage layout ends with the lesson
@@ -1654,26 +1667,144 @@ const app = {
     this.startSession(form);
   },
 
-  /* ── TEACHER REVIEW MODE ── */
+  /* ── 🧑‍🏫 THE TEACHER SCREEN (see TEACHER_KEY) ── */
   promptTeacherReview() {
-    const pin = prompt('Enter Teacher PIN to access Review Mode:');
-    if (pin !== '9377') { if (pin !== null) alert('Incorrect PIN.'); return; }
-    this.studentName = 'Mr. O (Teacher)';
-    reviewMode = true;
-    localStorage.removeItem(STORAGE_KEY);
-    this._showReviewPicker();
+    if (teacherUnlocked()) { this.openTeacher(); return; }
+    this.showPinModal('🧑‍🏫 Teacher', 'Enter the Teacher PIN.', () => {
+      try { sessionStorage.setItem(TEACHER_KEY, '1'); } catch (e) {}
+      this.openTeacher();
+    });
   },
 
-  _showReviewPicker() {
-    const list = FORMS.map((id, i) => `${i + 1} — ${id} ${LESSONS[id].title}`).join('\n');
-    const pick = prompt(`Choose a lesson to look at:\n${list}\n\nEnter a number:`);
-    const form = FORMS[Number(pick) - 1];
-    if (!form) { alert('Invalid choice.'); reviewMode = false; return; }
-    const mode = prompt('Choose review mode:\n1 — Manual (tap Next each question)\n2 — Auto-run (fully automatic)\n\nEnter 1 or 2:');
-    if (mode !== '1' && mode !== '2') { alert('Invalid choice.'); reviewMode = false; return; }
-    reviewAutoRun = (mode === '2');
-    this.startSession(form);
+  _teacherPick() {
+    let p = null;
+    try { p = JSON.parse(sessionStorage.getItem(TEACHER_PICK_KEY) || 'null'); } catch (e) {}
+    const strand = p && STRANDS.some(st => st.id === p.strand) ? p.strand : STRANDS[0].id;
+    const lessons = STRANDS.find(st => st.id === strand).lessons;
+    const form = p && lessons.includes(p.form) ? p.form : lessons[0];
+    const version = p && p.version >= 1 && p.version <= versionCount(form) ? p.version : 1;
+    return { strand, form, version };
   },
+
+  openTeacher() {
+    stopActiveSpeech();
+    this._renderTeacher(this._teacherPick());
+    this.show('teacher-screen');
+  },
+
+  /* A strand, a lesson, a version: one row of buttons each; the picked one is filled in. A new strand starts on its
+     first lesson; a new lesson keeps the version when it has one that high. */
+  teacherPick(change) {
+    const t = Object.assign(this._teacherPick(), change);
+    const lessons = STRANDS.find(st => st.id === t.strand).lessons;
+    if (!lessons.includes(t.form)) t.form = lessons[0];
+    if (!(t.version >= 1 && t.version <= versionCount(t.form))) t.version = 1;
+    this._renderTeacher(t);
+  },
+
+  _renderTeacher(t) {
+    try { sessionStorage.setItem(TEACHER_PICK_KEY, JSON.stringify(t)); } catch (e) {}
+    const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const btn = (on, label, change, id) =>
+      `<button type="button" class="t-pick${on ? ' on' : ''}" data-id="${id}" aria-pressed="${on}" onclick='app.teacherPick(${JSON.stringify(change)})'>${label}</button>`;
+    document.getElementById('t-strands').innerHTML = STRANDS
+      .map(st => btn(st.id === t.strand, `${st.icon} ${esc(st.name)}`, { strand: st.id }, st.id)).join('');
+    document.getElementById('t-lessons').innerHTML = STRANDS.find(st => st.id === t.strand).lessons
+      .map(id => btn(id === t.form, `${LESSONS[id].icon || ''} ${esc(LESSONS[id].title)}`, { form: id }, id)).join('');
+    const count = versionCount(t.form);
+    document.getElementById('t-version-row').classList.toggle('hidden', count < 2);
+    document.getElementById('t-versions').innerHTML = Array.from({ length: count }, (_, i) => i + 1)
+      .map(v => btn(v === t.version, `Version ${v}`, { version: v }, v)).join('');
+    document.getElementById('t-picked').textContent = this._teachLabel(t.form, t.version);
+  },
+
+  _teachLabel(form, version) {
+    return `${LESSONS[form].title}${versionCount(form) > 1 ? ' · Version ' + version : ''}`;
+  },
+
+  /* 👀 Try it as a student: the guest view, started on this lesson and version */
+  teacherTry() {
+    const t = this._teacherPick();
+    location.href = `${location.pathname}${window.SHARE_LINK}&teach=${t.form}.${t.version}`;
+  },
+
+  backToTeacher() {
+    stopActiveSpeech();
+    if (TEACH) { location.href = `${location.pathname}#teacher`; return; }
+    this.openTeacher();
+  },
+
+  exitTeacher() {
+    try { sessionStorage.removeItem(TEACHER_KEY); } catch (e) {}
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    this.exitReviewMode();
+  },
+
+  /* A Try-it link: signed in as the guest, one tap to start (the tap also lets the device speak) */
+  _teachReady() {
+    const t = TEACH;
+    if (!(t.version >= 1 && t.version <= versionCount(t.form))) return;
+    this._shareSignIn();
+    document.getElementById('student-login-panel').classList.add('hidden');
+    document.getElementById('welcome-panel').classList.add('hidden');
+    document.getElementById('teach-bar').classList.remove('hidden');
+    document.body.classList.add('teach-on');
+    document.getElementById('teach-what').textContent = this._teachLabel(t.form, t.version);
+    document.getElementById('teach-ready').classList.remove('hidden');
+  },
+
+  teachStart() {
+    document.getElementById('teach-ready').classList.add('hidden');
+    this._teachVersion = TEACH.version;
+    this.startSession(TEACH.form);
+  },
+
+  /* ⏩ Skip the wait: opens what a student is waiting on right now — the passage (reading-ui.js), the question, the
+     worked example or the Listen after a miss (the latest _listenGate), the pause before Next, the score screen's lock.
+     Each opens the way hearing it to the end does. */
+  teacherSkipWait() {
+    stopActiveSpeech();
+    if (typeof this._passageOpen === 'function') this._passageOpen();
+    if (typeof this._gateOpen === 'function') this._gateOpen();
+    if (this.nextInterval) {
+      clearInterval(this.nextInterval);
+      this.nextInterval = null;
+      document.getElementById('next-timer-bar').classList.add('hidden');
+      this.soakDone = true;
+    }
+    if (this.questionLocked && !document.getElementById('quiz-screen').classList.contains('hidden')) this._maybeShowNext();
+    if (typeof this._scoreUnlock === 'function') this._scoreUnlock();
+  },
+
+  /* Go anywhere in the run (◀ menu ▶): every card and question. A question skipped is not scored. */
+  _teachList() {
+    const tag = q => q.kind === 'watch' ? '👀 Watch' : q.kind === 'step' ? '🪜 Step' : q.kind === 'pre' ? '🎯 Show what you know' : '✏️ Your turn';
+    return (this.currentBank || []).map((q, i) => ({ i, label: `${i + 1}. ${tag(q)}${q.title ? ': ' + q.title : ''}` }));
+  },
+
+  _teachSync() {
+    const list = this._teachList();
+    const jump = document.getElementById('teach-jump');
+    document.getElementById('teach-bar').classList.add('started');
+    if (jump.options.length !== list.length) {
+      jump.innerHTML = '';
+      list.forEach((it, k) => { const o = document.createElement('option'); o.value = String(k); o.textContent = it.label; jump.appendChild(o); });
+    }
+    jump.value = String(this.currentIndex);
+    document.getElementById('teach-prev').disabled = this.currentIndex <= 0;
+    document.getElementById('teach-next').disabled = this.currentIndex >= list.length - 1;
+  },
+
+  teachGo(k) {
+    if (!(k >= 0 && k < (this.currentBank || []).length)) return;
+    stopActiveSpeech();
+    if (this.nextInterval) { clearInterval(this.nextInterval); this.nextInterval = null; }
+    if (document.getElementById('quiz-screen').classList.contains('hidden')) this.show('quiz-screen');
+    this.currentIndex = k;
+    this.renderQuestion();
+  },
+
+  teachStep(d) { this.teachGo(this.currentIndex + d); },
 
   exitReviewMode() {
     reviewMode    = false;
@@ -1764,6 +1895,7 @@ const app = {
     const triesDone = reviewMode ? 0 : (getFormAttempts(this.studentName)[form] || 0);
     this.triesAt = triesDone;
     this.version = Array.isArray(versions) && versions.length ? triesDone % versions.length : 0;
+    if (this._teachVersion) { this.version = Math.min(this._teachVersion, versionCount(form)) - 1; this._teachVersion = null; }   // 👀 Try it
     let rawBank = [...(this.version ? versions[this.version] : window['LAB_' + form])];
     // 🎯 Show what you know: only on the first try at a lesson not yet passed (a retry goes straight to the lesson).
     // Not either once its harder lesson (PASSED_WITH) was tried and not passed: that try already showed the skill is
@@ -2030,6 +2162,7 @@ const app = {
 
   /* ── RENDER QUESTION ── */
   renderQuestion() {
+    if (TEACH) this._teachSync();   // 👀 Try it as a student: the bar's menu follows the run
     setPartBanner(this.currentForm);
     const q     = this.currentQ();
     const total = this.currentBank.length;
@@ -2275,6 +2408,7 @@ const app = {
   /* One Listen button that must be heard to the end (shared by the question, the worked example and the
      mistake). pending() = still has to be heard; heard(how) runs once, how = 'voice' | 'read'. */
   _listenGate(btn, note, spans, text, pending, heard, labels) {
+    this._gateOpen = () => { if (pending() && btn.isConnected) heard('skip'); };   // 🧑‍🏫 ⏩ Skip the wait
     const words = text.split(/\s+/).filter(Boolean).length;
     const clearHl = () => spans.forEach(el => el.classList.remove('hl'));
     const idle = () => { btn.classList.remove('playing'); btn.textContent = pending() ? labels.listen : labels.again; };
@@ -2761,16 +2895,14 @@ const app = {
     count.textContent = secs;
     buttons.forEach(b => { b.disabled = true; b.style.opacity = '0.4'; });
     let remaining = secs;
+    const open = () => { clearInterval(iv); bar.classList.add('hidden'); buttons.forEach(b => { b.disabled = false; b.style.opacity = '1'; }); this._scoreUnlock = null; };
     const iv = setInterval(() => {
       remaining--;
       count.textContent = remaining;
       fill.style.width = (remaining / secs * 100) + '%';
-      if (remaining <= 0) {
-        clearInterval(iv);
-        bar.classList.add('hidden');
-        buttons.forEach(b => { b.disabled = false; b.style.opacity = '1'; });
-      }
+      if (remaining <= 0) open();
     }, 1000);
+    this._scoreUnlock = open;   // 🧑‍🏫 ⏩ Skip the wait
   },
 
   clearScores() {
@@ -3003,6 +3135,8 @@ function stopConfetti() {
 
 /* ── BOOT ────────────────────────────────────────────── */
 app.init();
+if (TEACH) app._teachReady();
+else if (location.hash === '#teacher' && teacherUnlocked()) app.openTeacher();
 
 /* ── CLOSED-TO-STUDENTS LOCK ────────────────────────── */
 (function applyReviewLock() {

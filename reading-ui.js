@@ -356,6 +356,13 @@ function readingGate(app, q, story, total) {
   markParas(parasHeard[key]);
   const listenAgain = listenChunks(btn, note, chunks, () => !app.heardStories.includes(key), heard, { listen: '🔊 Listen to the passage', again: '🔊 Listen again' },
     para => paraHeard(key, para));
+  // 🧑‍🏫 ⏩ Skip the wait (Teacher screen, Try it as a student): heard, then on to the questions
+  app._passageOpen = () => {
+    if (app.heardStories.includes(key) || !btn.isConnected) return;
+    heard('skip');
+    const go = fb.querySelector('#story-go-btn');
+    if (go) go.click();
+  };
   app.saveProgress();
 }
 

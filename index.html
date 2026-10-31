@@ -6,7 +6,7 @@
   <title>The Lab: Back to Basics</title>
   <!-- tab icon: 🧪, drawn by the computer's own emoji font (Marcos 10/25: "i want this icon for the LAB tab") -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='.9em' font-size='90' text-anchor='middle'%3E%F0%9F%A7%AA%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=follow1" />
+  <link rel="stylesheet" href="style.css?v=teach1" />
 </head>
 <body>
 <canvas id="confetti-canvas"></canvas>
@@ -31,8 +31,17 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
         <!-- for teachers and visitors (Mr. Olivera 10/22): how the Lab works, lesson by lesson — opens in a new tab -->
         <a href="https://mroteacher.com/behind-the-lab/" target="_blank" rel="noopener" id="behind-the-lab-link" style="font-size:0.72rem;color:#bbb;text-decoration:none;">Behind the LAB</a>
-        <span onclick="app.promptTeacherReview()" style="font-size:0.72rem;color:#bbb;cursor:pointer;user-select:none;">Teacher Access</span>
+        <span onclick="app.promptTeacherReview()" style="font-size:12px;color:#767676;cursor:pointer;user-select:none;">Teacher Access</span>
       </div>
+    </div>
+
+    <!-- 👀 TRY IT AS A STUDENT (Teacher screen, 10/30): a ?share=…&teach=<LESSON>.<version> link starts here — one tap
+         starts the lesson (the tap also lets the device speak) -->
+    <div id="teach-ready" class="teach-ready hidden">
+      <p class="teach-ready-h">🧑‍🏫 Try it as a student</p>
+      <p class="teach-ready-what" id="teach-what"></p>
+      <p class="teach-ready-note">You answer, the way a student does. ⏩ Skip the wait opens anything that is shut. Nothing is saved.</p>
+      <button type="button" class="start-btn" id="teach-start-btn" onclick="app.teachStart()">▶ Start</button>
     </div>
 
     <!-- STUDENT LOGIN (hidden until after directions) -->
@@ -353,6 +362,30 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════
+       TEACHER SCREEN (Marcos 10/30, "plan the LAB version"): one screen instead of pop-ups — a strand, a lesson,
+       a version, then 👀 Try it as a student. Any lesson; nothing has to be passed first. Filled in by script.js.
+  ══════════════════════════════════════════ -->
+  <div id="teacher-screen" class="hidden">
+    <div class="t-bar">
+      <span class="t-title">🧑‍🏫 Teacher</span>
+      <span class="t-note">Nothing here is saved or sent.</span>
+      <button type="button" class="t-exit" id="t-exit-btn" onclick="app.exitTeacher()">✕ Exit teacher</button>
+    </div>
+    <h3 class="t-h">Strand</h3>
+    <div class="t-row" id="t-strands"></div>
+    <h3 class="t-h">Lesson</h3>
+    <div class="t-row" id="t-lessons"></div>
+    <div id="t-version-row">
+      <h3 class="t-h">Version <span class="t-h-note">each one has its own numbers or stories</span></h3>
+      <div class="t-row" id="t-versions"></div>
+    </div>
+    <p class="t-picked" id="t-picked"></p>
+    <div class="t-actions">
+      <button type="button" class="t-act" id="t-try" onclick="app.teacherTry()">👀 Try it as a student<span>You answer, like a student, from Show what you know to the end. ⏩ Skip the wait opens anything that is shut. Nothing is saved.</span></button>
+    </div>
+  </div>
+
   <!-- GLOBAL PIN MODAL -->
   <div id="pin-modal" class="hidden">
     <div class="pin-modal-inner">
@@ -373,7 +406,19 @@
 
 </div><!-- /.container -->
 
-<script src="share.js?v=3"></script>
+<!-- 👀 Try it as a student: the teacher's bar (shown only on a ?teach= link) -->
+<div id="teach-bar" class="teach-bar hidden">
+  <span class="teach-bar-what">🧑‍🏫 Trying it as a student · nothing is saved</span>
+  <span class="teach-go">
+    <button type="button" id="teach-prev" aria-label="Back one" onclick="app.teachStep(-1)">◀</button>
+    <select id="teach-jump" aria-label="Go to a card or question" onchange="app.teachGo(Number(this.value)); this.blur();"></select>
+    <button type="button" id="teach-next" aria-label="Forward one" onclick="app.teachStep(1)">▶</button>
+  </span>
+  <button type="button" id="teach-skip" onclick="app.teacherSkipWait()">⏩ Skip the wait</button>
+  <button type="button" id="teach-back" onclick="app.backToTeacher()">← Teacher screen</button>
+</div>
+
+<script src="share.js?v=4"></script>
 <script src="next-waits.js?v=1" data-hold='#next-btn, #story-go-btn'></script>
 <script src="lessons.js?v=big1"></script>
 <script src="data/as1.js?v=rt2"></script>
@@ -438,8 +483,8 @@
 <script src="data/rd3.js?v=rd3"></script>
 <script src="data/rd4.js?v=rd3"></script>
 <script src="reading.js?v=rp1"></script>
-<script src="script.js?v=noskip2-follow1-dir15-voice1"></script>
+<script src="script.js?v=teach1"></script>
 <script src="qps-feed.js?v=qf1"></script>
-<script src="reading-ui.js?v=rm1-follow1-voice1"></script>
+<script src="reading-ui.js?v=teach1"></script>
 </body>
 </html>
