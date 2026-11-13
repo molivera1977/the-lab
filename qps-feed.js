@@ -131,7 +131,7 @@ function qpsStatus(name) {
     stars: Math.max(Math.min(3, Number(rec.stars) || 0), best != null ? qpsStarsFor(best) : 0),
     checks: fromSheet ? fromSheet.checks : null,
     tried: (!!fromSheet && fromSheet.checks > 0) || rec.lastScore != null || passes > 0,
-    test: prog ? prog.test.filter(id => QPS_STOP_NAMES[id]) : []
+    test: prog ? prog.test.filter(id => QPS_STOP_NAMES[String(id).split(':')[0]]) : []   // a part ("2:b", 11/13) counts too
   };
 }
 
@@ -142,7 +142,8 @@ function qpsWords(s) {
                    : 'In QPS, you have not started Words in context yet.';
   }
   const out = [`Your QPS stop is Stop ${s.stop}, ${s.title}.`];
-  if (s.test.length) out.push(`Mr. O will check ${s.test.length > 1 ? 'Stops' : 'Stop'} ${s.test.join(' and ')} with you soon.`);
+  // a part of a stop on his list (11/13): "2:b" reads Stop 2(b)
+  if (s.test.length) out.push(`Mr. O will check ${s.test.length > 1 ? 'Stops' : 'Stop'} ${s.test.map(x => String(x).replace(/^(\w+):([ab])$/, '$1($2)')).join(' and ')} with you soon.`);
   if (s.checks) out.push(`You did ${s.checks} ${s.checks === 1 ? 'Check' : 'Checks'} on this stop.`);
   else if (!s.tried) out.push('You have not done a Check on this stop yet.');
   if (s.stars) out.push(`You have ${s.stars} ${s.stars === 1 ? 'star' : 'stars'}.`);
