@@ -26,7 +26,7 @@
         Your own lessons, made for you.<br>
         Watch and listen. Try it step by step. Then show what you can do!
       </p>
-      <button class="lgs-btn" onclick="app.showReadAloudIntro()">🚀 Let's Get Started!</button>
+      <button class="lgs-btn" data-guest-start onclick="app.showReadAloudIntro()">🚀 Let's Get Started!</button>
       <!-- the two small teacher links, in opposite bottom corners (Mr. Olivera 10/22: "put both in opposite corners on the bottom") -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
         <!-- for teachers and visitors (Mr. Olivera 10/22): how the Lab works, lesson by lesson — opens in a new tab -->
@@ -383,7 +383,7 @@
     <p class="t-picked" id="t-picked"></p>
     <div class="t-actions">
       <button type="button" class="t-act" id="t-try" onclick="app.teacherTry()">👀 Try it as a student<span>You answer, like a student, from Show what you know to the end. ⏩ Skip the wait opens anything that is shut. Nothing is saved.</span></button>
-      <button type="button" class="t-act" id="t-slides" onclick="app.teacherSlides()">🖥️ Slide Mode<span>The lesson, big, for your desk or the board: the worked example and the steps. Never the questions.</span></button>
+      <button type="button" class="t-act" id="t-slides" data-guest-slides onclick="app.teacherSlides()">🖥️ Slide Mode<span>The lesson, big, for your desk or the board: the worked example and the steps. Never the questions.</span></button>
       <button type="button" class="t-act" id="t-key" onclick="app.teacherKey()">✅ Answer key<span>Every Show what you know and Your turn question on one page, the right answer marked, and why. Reading shows each trap. You can print it.</span></button>
     </div>
   </div>
@@ -450,7 +450,7 @@
   <button type="button" id="teach-back" onclick="app.backToTeacher()">← Teacher screen</button>
 </div>
 
-<script src="share.js?v=4"></script>
+<script src="share.js?v=5"></script>
 <script src="next-waits.js?v=1" data-hold='#next-btn, #story-go-btn'></script>
 <script src="lessons.js?v=big1"></script>
 <script src="data/as1.js?v=rt2"></script>
@@ -516,7 +516,7 @@
 <script src="data/rd4.js?v=rd3"></script>
 <script src="reading.js?v=rp1"></script>
 <script src="spot-sync.js?v=3"></script>
-<script src="script.js?v=teach3-roster24-spot1"></script>
+<script src="script.js?v=teach3-roster24-spot1-guest1"></script>
 <script src="qps-feed.js?v=qf2"></script>
 <script src="reading-ui.js?v=teach1"></script>
 </body>
